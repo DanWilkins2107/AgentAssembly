@@ -3,14 +3,10 @@ dist/
 build/
 *.log
 
-# Env files: only *.env.example placeholders are ever committed (see docs/secrets.md).
 .env
 .env.*
 !.env.example
 
-# Private-key material and any other real secrets live under secrets/ (see
-# docs/secrets.md). The directory is ignored wholesale; only its README is kept
-# so the canonical location exists and self-documents in a fresh clone.
 secrets/*
 !secrets/README.md
 
