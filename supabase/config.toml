@@ -1,0 +1,44 @@
+# AgentAssembly — Supabase CLI config.
+# Reference: https://supabase.com/docs/guides/local-development/cli/config
+#
+# Auth is deliberately locked down here: see docs/identity-model.md for the
+# identity contract these settings enforce.
+
+project_id = "agentassembly"
+
+[auth]
+enabled = true
+
+# Users are provisioned by an operator via the Supabase dashboard, never by a
+# public signup form. Disabled in both [auth] and [auth.email] because the
+# per-provider flag is what gates the email/password endpoint.
+enable_signup = false
+
+# Email/password is the only provider. No external OAuth, no anonymous users.
+enable_anonymous_sign_ins = false
+
+# Lifetimes are set explicitly rather than inherited from CLI defaults so the
+# access-token window is a reviewed decision. 1h access tokens keep the window
+# for a leaked JWT short while staying long enough that a long-running agent
+# run is not refreshing constantly. Rotation on means a stolen refresh token is
+# single-use; the 10s reuse interval only forgives a genuine race between two
+# concurrent refreshes of the same token, and any later reuse revokes the
+# family.
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+
+# Operator-set passwords, so a strict policy costs nothing at provisioning time.
+minimum_password_length = 12
+password_requirements = "lower_upper_letters_digits_symbols"
+
+[auth.email]
+enable_signup = false
+
+# No confirmation round-trip: an account only exists because an operator created
+# it in the dashboard, so there is no unverified address to prove ownership of.
+enable_confirmations = false
+
+# Changing an existing address still requires confirming from both the old and
+# the new one — that flow is user-initiated, so it does need proof.
+double_confirm_changes = true
