@@ -4,12 +4,12 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { clearSession, getSession, SessionError, setSession, type SessionBundle } from "./session.js";
 
-// The two assertions below check real POSIX mode bits (0600/0700), which Node
-// cannot represent on Windows. `npm test` runs the whole suite on Linux in
-// Docker, so on the default path these always execute. This guard only matters
-// if someone runs `npm run test:unit` directly on a Windows host, where it
-// skips them rather than failing spuriously.
-const posixOnly = process.platform === "win32" ? it.skip : it;
+// This suite asserts real POSIX mode bits (0600/0700), which only exist on
+// Linux — the only supported runtime for the CLI. Rather than silently skipping
+// on other platforms, fail loudly so a green run always means the perm tests ran.
+if (process.platform !== "linux") {
+  throw new Error(`CLI tests must run on Linux; got platform "${process.platform}"`);
+}
 
 const session: SessionBundle = {
   access_token: "access-token-value",
@@ -81,13 +81,13 @@ describe("session", () => {
     await expect(readdir(dir)).resolves.toEqual([]);
   });
 
-  posixOnly("creates the session file with 0600 permissions", async () => {
+  it("creates the session file with 0600 permissions", async () => {
     await setSession(session, dir);
     const mode = (await stat(join(dir, "session.json"))).mode & 0o777;
     expect(mode.toString(8)).toBe("600");
   });
 
-  posixOnly("creates the store directory with 0700 permissions", async () => {
+  it("creates the store directory with 0700 permissions", async () => {
     const nested = join(dir, ".agentjira");
     await setSession(session, nested);
     const mode = (await stat(nested)).mode & 0o777;

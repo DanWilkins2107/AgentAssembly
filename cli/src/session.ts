@@ -6,8 +6,8 @@ import { z } from "zod";
 
 // Octal Unix permission bits, applied when the directory/file are created:
 //   0o700 = owner-only directory, 0o600 = owner read/write file.
-// This keeps the cached tokens unreadable by other users on the box. (These
-// bits have no effect on Windows — see README for running the perm tests.)
+// This keeps the cached tokens unreadable by other users on the box. Linux is
+// the only supported runtime; the tests fail loudly if run elsewhere.
 const DIR_MODE = 0o700;
 const FILE_MODE = 0o600;
 
