@@ -22,6 +22,17 @@ jobs:
       - name: Verify services are healthy
         run: supabase status
 
+      - name: Install auth test deps
+        run: npm ci --prefix supabase/tests/auth
+
+      - name: Run auth policy tests
+        run: |
+          eval "$(supabase status -o env)"
+          export SUPABASE_URL="$API_URL"
+          export SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          npm test --prefix supabase/tests/auth
+
       - name: Stop stack
         if: always()
         run: supabase stop --no-backup
