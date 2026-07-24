@@ -1,7 +1,3 @@
 # AgentAssembly
 
-Base commit.
-
-## Documentation
-
-- [Secrets & environment design](docs/secrets.md)
+Secrets & environment design: [docs/secrets.md](docs/secrets.md)
