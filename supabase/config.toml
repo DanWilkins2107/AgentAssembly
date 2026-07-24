@@ -15,8 +15,8 @@ project_id = "agentassembly"
 enabled = true
 
 # Users are provisioned by an operator via the Supabase dashboard, never by a
-# public signup form. Disabled in both [auth] and [auth.email] because the
-# per-provider flag is what gates the email/password endpoint.
+# public signup form. Top-level enable_signup gates public signup
+# (GOTRUE_DISABLE_SIGNUP); the [auth.email] flag below is a different lever.
 enable_signup = false
 
 # Email/password is the only provider. No external OAuth, no anonymous users.
@@ -38,7 +38,10 @@ minimum_password_length = 12
 password_requirements = "lower_upper_letters_digits_symbols"
 
 [auth.email]
-enable_signup = false
+# Per-provider flag gates the whole email/password provider including LOGIN, not
+# just signup (GOTRUE_EXTERNAL_EMAIL_ENABLED). Must stay true or provisioned
+# users can't sign in. Public signup stays blocked by top-level [auth] above.
+enable_signup = true
 
 # No confirmation round-trip: an account only exists because an operator created
 # it in the dashboard, so there is no unverified address to prove ownership of.
