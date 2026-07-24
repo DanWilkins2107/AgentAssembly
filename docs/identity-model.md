@@ -30,16 +30,11 @@ handed to a client.
 
 ### Accounts are provisioned, not self-served
 
-Public signup is off (`enable_signup = false` in both `[auth]` and
-`[auth.email]`), anonymous sign-ins are off, and there is no external OAuth
-provider. An `auth.users` row exists only because an operator created it in the
-Supabase dashboard. Consequences worth stating explicitly:
-
-- Membership is never granted by the act of signing up, because signing up is
-  not a thing a stranger can do.
-- Email confirmation is off (`enable_confirmations = false`): there is no
-  unverified address to prove ownership of, since the operator set it.
-- Knowing a valid email address gets an attacker nothing. Only credentials do.
+An `auth.users` row exists only because an operator created it — there is no
+self-service path in. Membership is therefore never a side effect of signing up,
+and knowing a valid email address gets an attacker nothing; only credentials do.
+The auth settings that enforce this — signup, anonymous sign-ins, and email
+confirmation all off — live in `supabase/config.toml`.
 
 ## What a caller may do
 

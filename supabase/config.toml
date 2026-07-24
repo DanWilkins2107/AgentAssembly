@@ -1,6 +1,11 @@
 # AgentAssembly — Supabase CLI config.
 # Reference: https://supabase.com/docs/guides/local-development/cli/config
 #
+# Scope: these settings drive the local stack (`supabase start`) and are pushed
+# to the linked hosted project with `supabase config push`. They are not applied
+# automatically by a git push or by `supabase db push` — config is synced by its
+# own command.
+#
 # Auth is deliberately locked down here: see docs/identity-model.md for the
 # identity contract these settings enforce.
 
