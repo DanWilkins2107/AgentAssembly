@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anonClient } from "./harness.js";
+import { anonClient } from "./harness.ts";
 
 describe("public signup", () => {
   it("is rejected for anonymous callers", async () => {

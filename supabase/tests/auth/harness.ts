@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
-import { env } from "./env.js";
+import { env } from "./env.ts";
 
 const noPersist = { auth: { autoRefreshToken: false, persistSession: false } };
 

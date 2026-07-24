@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { anonClient, deleteUser, provisionUser, serviceRoleClient } from "./harness.js";
+import { anonClient, deleteUser, provisionUser, serviceRoleClient } from "./harness.ts";
 
 describe("password policy on authenticated update", () => {
   const admin = serviceRoleClient();
