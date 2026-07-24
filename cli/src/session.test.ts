@@ -4,6 +4,10 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { clearSession, getSession, SessionError, setSession, type SessionBundle } from "./session.js";
 
+// The two assertions below check real POSIX mode bits (0600/0700). Node cannot
+// represent those on Windows, so they are skipped there rather than failing
+// spuriously — run the suite on Linux to actually exercise them:
+// `npm run test:docker` (or any Linux CI).
 const posixOnly = process.platform === "win32" ? it.skip : it;
 
 const session: SessionBundle = {

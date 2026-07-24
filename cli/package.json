@@ -16,7 +16,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:docker": "docker build -f Dockerfile -t agentassembly-cli-test . && docker run --rm agentassembly-cli-test"
   },
   "dependencies": {
     "zod": "^4.1.12"
