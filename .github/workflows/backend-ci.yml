@@ -1,0 +1,51 @@
+name: backend-ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  db:
+    name: DB - rebuild & boot from repo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Start stack from repo config
+        run: supabase start
+
+      - name: Verify services are healthy
+        run: supabase status
+
+      - name: Stop stack
+        if: always()
+        run: supabase stop --no-backup
+
+  functions:
+    name: Functions - typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Typecheck edge functions
+        run: |
+          shopt -s nullglob
+          found=0
+          for fn in supabase/functions/*/index.ts; do
+            found=1
+            echo "deno check $fn"
+            deno check "$fn"
+          done
+          if [ "$found" = 0 ]; then
+            echo "No edge functions yet - nothing to typecheck."
+          fi
