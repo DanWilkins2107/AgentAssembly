@@ -28,6 +28,6 @@ import { getSession, setSession, clearSession } from "agentassembly-cli/session"
 ```
 npm run typecheck   # tsc --noEmit, includes tests
 npm run build       # tsc -> dist/
-npm test            # vitest run
-npm run test:docker # run the suite on Linux (exercises the POSIX-permission tests)
+npm test            # build + run the suite on Linux in Docker (perm tests always run)
+npm run test:unit   # raw vitest (fast local loop; skips the POSIX-perm tests on Windows)
 ```
