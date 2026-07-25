@@ -8,11 +8,8 @@ begin;
 create extension if not exists pgtap;
 select plan(1);
 
--- Allowlist a (schema, table, column, tier) that is intentionally readable.
--- tier: 'anon' | 'authenticated' | 'other_user'. reason is required.
--- Add rows below as intentional exceptions arise, e.g.:
---   insert into access_exceptions values
---     ('public','assets','geo_public','anon','Asset locations are world-readable');
+-- Allowlist of (schema, table, column, tier) columns that are intentionally
+-- readable. tier is 'anon' | 'authenticated' | 'other_user'; reason is required.
 create temp table access_exceptions (
   schema_name text not null,
   table_name  text not null,
@@ -21,64 +18,95 @@ create temp table access_exceptions (
   reason      text not null check (length(trim(reason)) > 0)
 );
 
+-- === Add intentional exceptions here ===
+-- One insert per exception. Every column is named, so a row reads as a sentence.
+-- Example (delete once you add a real one):
+--   insert into access_exceptions (schema_name, table_name, column_name, tier, reason)
+--   values ('public', 'assets', 'geo_public', 'anon', 'Asset locations are world-readable');
+
 -- A role can read a column when it holds the column SELECT grant AND (if RLS is
 -- on) some permissive SELECT policy admits that role. Same rule for every role.
 create function pg_temp.role_can_read(
-  role text, tbl oid, sch text, tab text, rls boolean, col text
+  role_name    text,
+  table_oid    oid,
+  schema_name  text,
+  table_name   text,
+  rls_enabled  boolean,
+  column_name  text
 ) returns boolean language sql stable as $$
-  select has_column_privilege(role, tbl, col, 'SELECT')
-    and (not rls or exists (
-      select 1 from pg_policies p
-      where p.schemaname = sch and p.tablename = tab
-        and p.permissive = 'PERMISSIVE' and p.cmd in ('SELECT','ALL')
-        and (role = any(p.roles) or 'public' = any(p.roles))
+  select has_column_privilege(role_name, table_oid, column_name, 'SELECT')
+    and (not rls_enabled or exists (
+      select 1 from pg_policies policy
+      where policy.schemaname = schema_name and policy.tablename = table_name
+        and policy.permissive = 'PERMISSIVE' and policy.cmd in ('SELECT','ALL')
+        and (role_name = any(policy.roles) or 'public' = any(policy.roles))
     ));
 $$;
 
 create temp view access_readability as
 with app_tables as (
-  select c.oid as tbl, n.nspname as schema_name, c.relname as table_name,
-         c.relrowsecurity as rls
-  from pg_class c
-  join pg_namespace n on n.oid = c.relnamespace
-  where c.relkind = 'r'
-    and n.nspname not in (
+  select
+    class.oid          as table_oid,
+    namespace.nspname  as schema_name,
+    class.relname      as table_name,
+    class.relrowsecurity as rls_enabled
+  from pg_class class
+  join pg_namespace namespace on namespace.oid = class.relnamespace
+  where class.relkind = 'r'
+    and namespace.nspname not in (
       'pg_catalog','information_schema','pg_toast',
       'auth','storage','realtime','_realtime','vault',
       'pgsodium','pgsodium_masks','graphql','graphql_public',
       'extensions','supabase_functions','supabase_migrations',
       'cron','net','pgbouncer','_analytics','_supavisor'
     )
-    and n.nspname not like 'pg_temp%'
-    and n.nspname not like 'pg_toast_temp%'
+    and namespace.nspname not like 'pg_temp%'
+    and namespace.nspname not like 'pg_toast_temp%'
 ),
-cols as (
-  select t.*, a.attname as column_name
-  from app_tables t
-  join pg_attribute a on a.attrelid = t.tbl
-  where a.attnum > 0 and not a.attisdropped
+app_columns as (
+  select app_tables.*, attribute.attname as column_name
+  from app_tables
+  join pg_attribute attribute on attribute.attrelid = app_tables.table_oid
+  where attribute.attnum > 0 and not attribute.attisdropped
 )
 select
-  c.schema_name, c.table_name, c.column_name, c.rls,
-  pg_temp.role_can_read('anon', c.tbl, c.schema_name, c.table_name, c.rls, c.column_name) as anon_read,
-  pg_temp.role_can_read('authenticated', c.tbl, c.schema_name, c.table_name, c.rls, c.column_name) as authed_read
-from cols c;
+  app_columns.schema_name,
+  app_columns.table_name,
+  app_columns.column_name,
+  app_columns.rls_enabled,
+  pg_temp.role_can_read(
+    'anon', app_columns.table_oid, app_columns.schema_name,
+    app_columns.table_name, app_columns.rls_enabled, app_columns.column_name
+  ) as anon_can_read,
+  pg_temp.role_can_read(
+    'authenticated', app_columns.table_oid, app_columns.schema_name,
+    app_columns.table_name, app_columns.rls_enabled, app_columns.column_name
+  ) as authenticated_can_read
+from app_columns;
 
 -- Unpivot the three tiers, drop any that are allowlisted. What remains is a
 -- column readable by someone it shouldn't be -- a coverage failure.
 create temp view access_violations as
-select r.schema_name, r.table_name, r.column_name, v.tier, v.detail
-from access_readability r
+select
+  readability.schema_name,
+  readability.table_name,
+  readability.column_name,
+  tier_check.tier,
+  tier_check.detail
+from access_readability readability
 cross join lateral (values
-  ('anon',          r.anon_read,                 'readable by anon'),
-  ('authenticated', r.authed_read,               'readable by generic authenticated role'),
-  ('other_user',    r.authed_read and not r.rls, 'authenticated-readable but RLS off -> other users see all rows')
-) as v(tier, violated, detail)
-where v.violated
+  ('anon',          readability.anon_can_read,          'readable by anon'),
+  ('authenticated', readability.authenticated_can_read, 'readable by generic authenticated role'),
+  ('other_user',    readability.authenticated_can_read and not readability.rls_enabled,
+                    'authenticated-readable but RLS off -> other users see all rows')
+) as tier_check(tier, is_violated, detail)
+where tier_check.is_violated
   and not exists (
-    select 1 from access_exceptions e
-    where e.schema_name = r.schema_name and e.table_name = r.table_name
-      and e.column_name = r.column_name and e.tier = v.tier
+    select 1 from access_exceptions allow_entry
+    where allow_entry.schema_name = readability.schema_name
+      and allow_entry.table_name  = readability.table_name
+      and allow_entry.column_name = readability.column_name
+      and allow_entry.tier        = tier_check.tier
   );
 
 select is_empty(
