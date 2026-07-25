@@ -2,7 +2,8 @@ import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { clearSession, getSession, SessionError, setSession, type SessionBundle } from "./session.js";
+import { homedir } from "node:os";
+import { clearSession, getSession, sessionDir, SessionError, setSession, type SessionBundle } from "./session.js";
 
 // This suite asserts real POSIX mode bits (0600/0700), which only exist on
 // Linux — the only supported runtime for the CLI. Rather than silently skipping
@@ -98,5 +99,9 @@ describe("session", () => {
     await setSession(session, dir);
     const contents = await readFile(join(dir, "session.json"), "utf8");
     expect(JSON.parse(contents)).toEqual(session);
+  });
+
+  it("defaults the store to ~/.agentjira", () => {
+    expect(sessionDir()).toBe(join(homedir(), ".agentjira"));
   });
 });
