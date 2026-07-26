@@ -87,3 +87,25 @@ jobs:
 
       - name: Test with coverage
         run: npm run test:coverage
+
+  cli-mutation:
+    name: CLI - mutation testing
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Mutation testing
+        run: npm run test:mutation
