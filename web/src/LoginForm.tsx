@@ -7,6 +7,29 @@ export type LoginFormProps = {
   loading: boolean;
 };
 
+type FieldProps = {
+  name: string;
+  label: string;
+  type: "email" | "password";
+  autoComplete: string;
+};
+
+function Field({ name, label, type, autoComplete }: FieldProps) {
+  const id = `login-${name}`;
+  return (
+    <label className="login-form__field" htmlFor={id}>
+      {label}
+      <input
+        id={id}
+        name={name}
+        type={type}
+        autoComplete={autoComplete}
+        required
+      />
+    </label>
+  );
+}
+
 export function LoginForm({ onSubmit, error, loading }: LoginFormProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -18,29 +41,15 @@ export function LoginForm({ onSubmit, error, loading }: LoginFormProps) {
     <form className="login-form" onSubmit={handleSubmit}>
       <h1 className="login-form__title">Sign in</h1>
 
-      <label className="login-form__field" htmlFor="login-email">
-        Email
-        <input
-          id="login-email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-        />
-      </label>
+      <Field name="email" label="Email" type="email" autoComplete="email" />
+      <Field
+        name="password"
+        label="Password"
+        type="password"
+        autoComplete="current-password"
+      />
 
-      <label className="login-form__field" htmlFor="login-password">
-        Password
-        <input
-          id="login-password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-        />
-      </label>
-
-      {error === null ? null : (
+      {error && (
         <p className="login-form__error" role="alert">
           {error}
         </p>
