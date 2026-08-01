@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "health": {
+    "maxCyclomatic": 3,
+    "maxCognitive": 3,
+    "maxCrap": 5
+  },
+  "duplicates": {
+    "mode": "semantic",
+    "minTokens": 30,
+    "minLines": 3,
+    "threshold": 0.1
+  },
+  "rules": {
+    "unused-dev-dependencies": "error",
+    "unused-optional-dependencies": "error",
+    "unused-dependency-overrides": "error",
+    "type-only-dependencies": "error",
+    "test-only-dependencies": "error",
+    "dev-dependencies-in-production": "error",
+    "re-export-cycle": "error",
+    "stale-suppressions": "error",
+    "private-type-leaks": "error",
+    "thin-wrapper": "error",
+    "require-suppression-reason": "error"
+  }
+}
