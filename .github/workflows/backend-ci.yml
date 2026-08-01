@@ -90,3 +90,27 @@ jobs:
 
       - name: Test with coverage
         run: npm run test:coverage
+
+  cli-mutation:
+    name: CLI - mutation testing
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # TODO: raise cli/stryker.config.json thresholds.break to 100 — AgentJira node
+      # daa87f00-4e4d-4e62-9268-cf42cd5bf26b
+      - name: Mutation testing
+        run: npm run test:mutation
