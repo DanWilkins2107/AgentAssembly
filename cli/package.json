@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
     "./env": {
       "types": "./dist/env.d.ts",
       "default": "./dist/env.js"
@@ -22,6 +26,7 @@
     "fallow": "fallow"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {

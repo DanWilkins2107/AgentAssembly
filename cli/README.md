@@ -27,6 +27,18 @@ Session tokens are minted at sign-in (not env-injected), so they are cached in
 import { getSession, setSession, clearSession } from "agentassembly-cli/session";
 ```
 
+## Authenticated client
+
+`connect()` in `src/client.ts` returns a signed-in Supabase client: it resumes the cached session
+when there is one (supabase-js refreshes the access token and the rotated pair is written back), and
+otherwise signs in with `AGENTJIRA_PASSWORD`. Either failure clears the cached session and throws an
+`AuthError` — there is no fallback from a failed refresh to a password sign-in. supabase-js keeps no
+state of its own, so `session.json` stays the only thing on disk.
+
+```ts
+import { connect } from "agentassembly-cli/client";
+```
+
 ## Scripts
 
 ```
