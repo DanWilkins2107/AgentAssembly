@@ -1,17 +1,21 @@
 # AgentAssembly CLI
 
-Storage primitives for the CLI's password and session tokens.
+Storage primitives for the CLI's configuration and session tokens.
 
-## Password
+## Configuration
 
-`AGENTJIRA_PASSWORD` is injected by the runtime and validated in `src/env.ts`. Read it off the
-Zod-parsed env object; it is never written to disk.
+All CLI settings are env vars, validated in `src/env.ts` when the module is first imported — a
+missing or malformed value fails at startup, not mid-command. Nothing is read from a config file.
 
 ```ts
 import { env } from "agentassembly-cli/env";
-
-env.AGENTJIRA_PASSWORD; // string | undefined
 ```
+
+`AGENTJIRA_URL`, `AGENTJIRA_ANON_KEY` and `AGENTJIRA_EMAIL` are required. `AGENTJIRA_PASSWORD` is
+optional (a cached session covers most commands) and is never written to disk.
+
+One `AGENTJIRA_EMAIL` per process means one agent identity per process, so a CLI run can never
+touch a project it was not launched for.
 
 ## Session tokens
 
