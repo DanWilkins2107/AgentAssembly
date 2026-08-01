@@ -74,23 +74,27 @@ source of truth. It appears in **no** repo `.env` file.
 
 ### 5. Agent CLI tier
 
-CLI secrets live in the **user's home**, never the repo tree.
+CLI settings are **env vars**; the only thing on disk is the cached session
+token, in the user's home and never the repo tree.
 
 | Secret | Home | Sensitivity |
 |---|---|---|
-| `AGENTJIRA_URL` | env var or `~/.agentjira/config.json` | Low |
-| `AGENTJIRA_ANON_KEY` | same | Low (public) |
-| `AGENTJIRA_EMAIL` | same | Sensitive |
-| `AGENTJIRA_PASSWORD` | same | **Sensitive** |
+| `AGENTJIRA_URL` | env var | Low |
+| `AGENTJIRA_ANON_KEY` | env var | Low (public) |
+| `AGENTJIRA_EMAIL` | env var | Sensitive |
+| `AGENTJIRA_PASSWORD` | env var | **Sensitive** |
 | session token | `~/.agentjira/session.json` (mode `0600`) | **Sensitive** |
 
-Resolution order is env vars first, then `~/.agentjira/config.json`.
+Every CLI setting is an env var, validated in `cli/src/env.ts` at import. The CLI
+reads no config file, so no setting — secret or not — is ever written to disk.
+The session token is the sole exception: it is minted at sign-in rather than
+supplied, so it is cached at `0600`.
 
 **Deliberate design decision: there is no `cli/.env.example`, and the CLI loads
-no `.env` file.** CLI credentials belong in the user's home, not the repo tree.
-Adding a `cli/.env.example` would invite users to create a `cli/.env` inside the
-repo — exactly the pattern this design forbids. The tier table above is the
-canonical documentation of CLI configuration in place of a dotenv template.
+no `.env` file.** CLI credentials belong in the process environment, not the repo
+tree. Adding a `cli/.env.example` would invite users to create a `cli/.env`
+inside the repo — exactly the pattern this design forbids. The tier table above
+documents CLI configuration in place of a dotenv template.
 
 ## Local-dev-only fixtures (intentionally committed)
 
@@ -117,10 +121,10 @@ values are acceptable precisely because they are local-only.
 | `AGENTJIRA_SYNC_URL` | GHA repo secret | the GHA | Low | repo `.env` |
 | `AGENTJIRA_SECRET` | GHA repo secret (mirror of `webhook_secret`) | the GHA, `github-sync` | Sensitive | repo `.env` |
 | `webhook_secret` | `projects` Postgres row | web owner UI; `github-sync` | Sensitive | any repo `.env` |
-| `AGENTJIRA_URL` | env / `~/.agentjira/config.json` | the user's CLI | Low | repo tree |
-| `AGENTJIRA_ANON_KEY` | env / `~/.agentjira/config.json` | the user's CLI | Low (public) | repo tree |
-| `AGENTJIRA_EMAIL` | env / `~/.agentjira/config.json` | the user's CLI | Sensitive | repo tree |
-| `AGENTJIRA_PASSWORD` | env / `~/.agentjira/config.json` | the user's CLI | Sensitive | repo tree |
+| `AGENTJIRA_URL` | env var | the user's CLI | Low | repo tree |
+| `AGENTJIRA_ANON_KEY` | env var | the user's CLI | Low (public) | repo tree |
+| `AGENTJIRA_EMAIL` | env var | the user's CLI | Sensitive | repo tree |
+| `AGENTJIRA_PASSWORD` | env var | the user's CLI | Sensitive | repo tree, any file on disk |
 | CLI session token | `~/.agentjira/session.json` (`0600`) | the user's CLI | Sensitive | repo tree |
 | seed dev password | `supabase/seed.sql` (committed) | local dev | Weak, local-only | any hosted project |
 | seed dev `webhook_secret` | `supabase/seed.sql` (committed) | local dev | Weak, local-only | any hosted project |
@@ -142,9 +146,6 @@ These are catalogued for completeness and are **out of scope** for this design.
 They belong to the **Security hardening & safe-to-run-online** / **Authentication**
 workstreams:
 
-- **CLI password stored in plaintext** in `~/.agentjira/config.json`. Rationale:
-  hardening the storage of a weak-but-local credential is a security-workstream
-  concern, not part of establishing the target structure.
 - **`webhook_secret` agent-role non-exposure is a convention only** — the web
   (owner) UI reads it and the CLI never selects it, but this is not DB-enforced
   (no column-privilege revoke or restricted view). Rationale: enforcing it at the
