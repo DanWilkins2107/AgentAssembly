@@ -17,26 +17,31 @@ export function LoginForm({ onSubmit, error, loading }: LoginFormProps) {
 
   return (
     <form className="login-form" onSubmit={handleSubmit}>
-      <h1 className="login-form__title">Sign in</h1>
-      <p className="login-form__subtitle">Welcome back to AgentAssembly.</p>
+      <header className="login-form__header">
+        <span className="login-form__mark" aria-hidden="true" />
+        <h1 className="login-form__title">Sign in</h1>
+        <p className="login-form__subtitle">Welcome back to AgentAssembly.</p>
+      </header>
 
-      <Field name="email" label="Email" type="email" autoComplete="email" />
-      <Field
-        name="password"
-        label="Password"
-        type="password"
-        autoComplete="current-password"
-      />
+      <div className="login-form__body">
+        <Field name="email" label="Email" type="email" autoComplete="email" />
+        <Field
+          name="password"
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+        />
 
-      {error && (
-        <p className="login-form__error" role="alert">
-          {error}
-        </p>
-      )}
+        {error && (
+          <p className="login-form__error" role="alert">
+            {error}
+          </p>
+        )}
 
-      <button className="login-form__submit" type="submit" disabled={loading}>
-        {loading ? "Signing in…" : "Sign in"}
-      </button>
+        <button className="login-form__submit" type="submit" disabled={loading}>
+          {loading ? "Signing in…" : "Sign in"}
+        </button>
+      </div>
     </form>
   );
 }
