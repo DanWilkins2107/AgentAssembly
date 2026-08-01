@@ -18,7 +18,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "fallow": "fallow"
   },
   "dependencies": {
     "zod": "^4.1.12"
@@ -28,6 +29,7 @@
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/node": "^22.15.0",
     "@vitest/coverage-v8": "^3.2.4",
+    "fallow": "3.9.1",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

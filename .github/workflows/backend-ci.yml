@@ -85,6 +85,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Fallow (dead-code, duplication, complexity)
+        run: npm run fallow
+
       - name: Test with coverage
         run: npm run test:coverage
 
