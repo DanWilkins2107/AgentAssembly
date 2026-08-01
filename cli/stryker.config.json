@@ -5,6 +5,6 @@
   "mutate": ["src/**/*.ts", "!src/**/*.test.ts", "!src/env.ts"],
   "reporters": ["clear-text", "progress"],
   "thresholds": {
-    "break": 77.58
+    "break": 100
   }
 }
