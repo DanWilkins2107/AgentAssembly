@@ -67,18 +67,22 @@ describe("session", () => {
 
   it("throws a typed error on a corrupt file", async () => {
     await writeFile(join(dir, "session.json"), "not json", "utf8");
-    await expect(getSession(dir)).rejects.toBeInstanceOf(SessionError);
+    const failure = getSession(dir);
+    await expect(failure).rejects.toBeInstanceOf(SessionError);
+    await expect(failure).rejects.toThrow(/not valid JSON/);
   });
 
   it("throws a typed error on a well-formed file with the wrong shape", async () => {
     await writeFile(join(dir, "session.json"), JSON.stringify({ access_token: "" }), "utf8");
-    await expect(getSession(dir)).rejects.toBeInstanceOf(SessionError);
+    const failure = getSession(dir);
+    await expect(failure).rejects.toBeInstanceOf(SessionError);
+    await expect(failure).rejects.toThrow(/not a valid session/);
   });
 
   it("rejects an incomplete session without writing", async () => {
-    await expect(setSession({ access_token: "a", refresh_token: "" }, dir)).rejects.toBeInstanceOf(
-      SessionError,
-    );
+    const failure = setSession({ access_token: "a", refresh_token: "" }, dir);
+    await expect(failure).rejects.toBeInstanceOf(SessionError);
+    await expect(failure).rejects.toThrow(/non-empty access_token/);
     await expect(readdir(dir)).resolves.toEqual([]);
   });
 

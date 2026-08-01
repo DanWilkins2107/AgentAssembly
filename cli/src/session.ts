@@ -34,7 +34,7 @@ function sessionPath(dir: string): string {
 }
 
 function isMissing(error: unknown): boolean {
-  return (error as NodeJS.ErrnoException | null)?.code === "ENOENT";
+  return (error as NodeJS.ErrnoException).code === "ENOENT";
 }
 
 // Parse + validate on-disk contents; throws SessionError on bad JSON or shape.
