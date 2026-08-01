@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { Field } from "./Field";
 import "./LoginForm.css";
 
 export type LoginFormProps = {
@@ -6,29 +7,6 @@ export type LoginFormProps = {
   error: string | null;
   loading: boolean;
 };
-
-type FieldProps = {
-  name: string;
-  label: string;
-  type: "email" | "password";
-  autoComplete: string;
-};
-
-function Field({ name, label, type, autoComplete }: FieldProps) {
-  const id = `login-${name}`;
-  return (
-    <label className="login-form__field" htmlFor={id}>
-      {label}
-      <input
-        id={id}
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        required
-      />
-    </label>
-  );
-}
 
 export function LoginForm({ onSubmit, error, loading }: LoginFormProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -40,6 +18,7 @@ export function LoginForm({ onSubmit, error, loading }: LoginFormProps) {
   return (
     <form className="login-form" onSubmit={handleSubmit}>
       <h1 className="login-form__title">Sign in</h1>
+      <p className="login-form__subtitle">Welcome back to AgentAssembly.</p>
 
       <Field name="email" label="Email" type="email" autoComplete="email" />
       <Field
