@@ -1,8 +1,14 @@
 {
   "$schema": "./node_modules/fallow/schema.json",
   "health": {
-    "maxCyclomatic": 10,
-    "maxCognitive": 15
+    "maxCyclomatic": 5,
+    "maxCognitive": 8,
+    "maxCrap": 10
+  },
+  "duplicates": {
+    "mode": "semantic",
+    "minTokens": 40,
+    "minLines": 4
   },
   "rules": {
     "unused-dev-dependencies": "error",
@@ -12,6 +18,8 @@
     "dev-dependencies-in-production": "error",
     "re-export-cycle": "error",
     "stale-suppressions": "error",
-    "private-type-leaks": "error"
+    "private-type-leaks": "error",
+    "thin-wrapper": "error",
+    "require-suppression-reason": "error"
   }
 }
