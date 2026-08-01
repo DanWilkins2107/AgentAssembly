@@ -26,13 +26,19 @@ async function resume(client: SupabaseClient, cached: SessionBundle): Promise<Se
 }
 
 async function signIn(client: SupabaseClient): Promise<Session> {
-  const password = env.AGENTJIRA_PASSWORD;
-  if (!password) throw new AuthError("AGENTJIRA_PASSWORD is required to sign in");
-  const response = await client.auth.signInWithPassword({ email: env.AGENTJIRA_EMAIL, password });
+  const response = await client.auth.signInWithPassword({
+    email: env.AGENTJIRA_EMAIL,
+    password: env.AGENTJIRA_PASSWORD,
+  });
   return requireSession(response, "failed to sign in");
 }
 
 export async function connect(): Promise<SupabaseClient> {
+  // Node has no localStorage, so supabase-js would fall back to in-memory
+  // storage: tokens would die with the process and every command would sign in
+  // again. session.ts is the durable store instead. autoRefreshToken is off
+  // because its background timer would outlive a one-shot CLI command; the
+  // setSession call below still refreshes an expired access token.
   const client = createClient(env.AGENTJIRA_URL, env.AGENTJIRA_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });

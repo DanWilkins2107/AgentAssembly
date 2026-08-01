@@ -11,8 +11,9 @@ missing or malformed value fails at startup, not mid-command. Nothing is read fr
 import { env } from "agentassembly-cli/env";
 ```
 
-`AGENTJIRA_URL`, `AGENTJIRA_ANON_KEY` and `AGENTJIRA_EMAIL` are required. `AGENTJIRA_PASSWORD` is
-optional (a cached session covers most commands) and is never written to disk.
+`AGENTJIRA_URL`, `AGENTJIRA_ANON_KEY`, `AGENTJIRA_EMAIL` and `AGENTJIRA_PASSWORD` are all required,
+so a missing one fails at startup rather than at the first sign-in. The password is never written to
+disk.
 
 One `AGENTJIRA_EMAIL` per process means one agent identity per process, so a CLI run can never
 touch a project it was not launched for.
