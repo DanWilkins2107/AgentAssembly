@@ -1,12 +1,86 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App } from "./App";
+import { supabase } from "./supabase";
+
+vi.mock("./supabase", () => ({
+  supabase: { auth: { signInWithPassword: vi.fn() } },
+}));
+
+const signInWithPassword = supabase.auth.signInWithPassword as unknown as Mock;
+
+beforeEach(() => {
+  signInWithPassword.mockReset();
+});
+
+afterEach(cleanup);
+
+function submit(email = "ada@example.com", password = "hunter2") {
+  fireEvent.change(screen.getByLabelText("Email"), {
+    target: { value: email },
+  });
+  fireEvent.change(screen.getByLabelText("Password"), {
+    target: { value: password },
+  });
+  fireEvent.click(screen.getByRole("button"));
+}
 
 describe("App", () => {
-  it("renders the app heading", () => {
+  it("signs in with the entered credentials", async () => {
+    signInWithPassword.mockResolvedValue({ error: null });
     render(<App />);
-    expect(
-      screen.getByRole("heading", { name: "AgentAssembly" }),
-    ).toBeTruthy();
+
+    submit();
+
+    await waitFor(() =>
+      expect(signInWithPassword).toHaveBeenCalledWith({
+        email: "ada@example.com",
+        password: "hunter2",
+      }),
+    );
+  });
+
+  it("shows the message from a failed sign-in", async () => {
+    signInWithPassword.mockResolvedValue({
+      error: { message: "Invalid login credentials" },
+    });
+    render(<App />);
+
+    submit();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("Invalid login credentials");
+  });
+
+  it("clears the previous error when submitting again", async () => {
+    signInWithPassword.mockResolvedValue({
+      error: { message: "Invalid login credentials" },
+    });
+    render(<App />);
+    submit();
+    await screen.findByRole("alert");
+
+    signInWithPassword.mockResolvedValue({ error: null });
+    submit();
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  it("disables submit while the sign-in is pending", async () => {
+    let finish!: (result: unknown) => void;
+    signInWithPassword.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    render(<App />);
+
+    submit();
+
+    const pending = await screen.findByRole("button", { name: "Signing in…" });
+    expect((pending as HTMLButtonElement).disabled).toBe(true);
+
+    finish({ error: null });
+    await screen.findByRole("button", { name: "Sign in" });
   });
 });
