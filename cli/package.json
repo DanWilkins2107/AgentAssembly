@@ -4,10 +4,6 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./config": {
-      "types": "./dist/config.d.ts",
-      "default": "./dist/config.js"
-    },
     "./env": {
       "types": "./dist/env.d.ts",
       "default": "./dist/env.js"
