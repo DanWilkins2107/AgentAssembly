@@ -2,7 +2,13 @@
   "extraKnownMarketplaces": {
     "code-style": {
       "source": { "source": "github", "repo": "DanWilkins2107/code-style" }
+    },
+    "pr-evidence-tools": {
+      "source": { "source": "github", "repo": "DanWilkins2107/pr-evidence-gallery" }
     }
   },
-  "enabledPlugins": { "code-style@code-style": true }
+  "enabledPlugins": {
+    "code-style@code-style": true,
+    "pr-evidence@pr-evidence-tools": true
+  }
 }

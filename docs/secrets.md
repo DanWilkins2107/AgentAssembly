@@ -1,10 +1,12 @@
 # Secrets & environment — target design
 
-This is the **canonical target design** for how AgentAssembly handles secrets and
-environment configuration. It describes the structure the rebuilt system conforms
-to — not a snapshot of any current tree — and is the input contract that
-**Production provisioning & deploy flow** consumes when standing the system up
-online.
+Target design for how AgentAssembly handles secrets and environment
+configuration, and the input contract that **Production provisioning & deploy
+flow** consumes when standing the system up online.
+
+Where a file already defines a secret, that file is the detail. This document is
+the cross-cutting map — one home per secret, how sensitive it is, and where it
+must never appear — and does not restate what the file says.
 
 ## Core principle
 
@@ -16,9 +18,9 @@ online.
 
 Four rules follow from it:
 
-1. **One canonical home per secret.** Every secret has exactly one authoritative
-   location. Anywhere else that needs it *references* that home; it never
-   re-stores the value.
+1. **One home per secret.** Every secret has exactly one authoritative location.
+   Anywhere else that needs it *references* that home; it never re-stores the
+   value.
 2. **The tree holds no real secret.** Committed files carry placeholders,
    deliberately-weak local-only fixtures, or documentation — never a value that
    is valid against a hosted project.
@@ -30,104 +32,39 @@ Four rules follow from it:
    exactly the intentional local-only fixtures. (Delivered in a follow-up PR —
    see *CI enforcement*.)
 
-## The five trust tiers
+## The secrets
 
-### 1. Public tier
+| Tier | Secret | Home | Sensitivity | Must never appear in |
+|---|---|---|---|---|
+| Public | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | `web/.env` locally (from `web/.env.example`); build env in hosting | Public **by design** — RLS is the gate, not obscurity | — |
+| Server-secret | `SUPABASE_SERVICE_ROLE_KEY` | platform-injected by Supabase into Edge Functions; read by `github-sync` only | **High** — bypasses RLS | web bundle, CLI, any repo file |
+| Server-secret | `GITHUB_APP_ID` | `github-token` Function secret (from `supabase/functions/.env.example`); hosted via `supabase secrets set` | Low | web bundle, CLI |
+| Server-secret | `GITHUB_APP_PRIVATE_KEY` | same; local PEM source is `secrets/envkey.pem` (gitignored — see `secrets/README.md`) | **High** — signs the app JWT | any committed file |
+| CI | `AGENTJIRA_SYNC_URL` | GHA repo secret | Low — the `github-sync` function URL | repo `.env` |
+| CI | `AGENTJIRA_SECRET` | GHA repo secret; **mirror** of the project's `webhook_secret` | **Sensitive** | repo `.env` |
+| Shared-secret | per-project `webhook_secret` | the `projects` Postgres row (`encode(gen_random_bytes(32), 'hex')`); read by the web owner UI and `github-sync` | **Sensitive** | any repo `.env` |
+| Agent CLI | `AGENTJIRA_URL`, `AGENTJIRA_ANON_KEY`, `AGENTJIRA_EMAIL`, `AGENTJIRA_PASSWORD` | env vars only — see `cli/README.md` | `EMAIL` / `PASSWORD` **Sensitive**; rest Low | repo tree, any file on disk |
+| Agent CLI | session token | `~/.agentjira/session.json` — see `cli/README.md` | **Sensitive** | repo tree |
 
-Safe in a browser bundle and safe as a committed placeholder. Public **by
-design** — Row Level Security is the real gate, not obscurity of these values.
+The `github-sync` function needs **no repo-side secret file**: its only secret is
+the platform-injected service-role key.
 
-| Secret | Home | Notes |
-|---|---|---|
-| `VITE_SUPABASE_URL` | `web/.env` locally (from `web/.env.example`); build env in hosting | Project API URL. |
-| `VITE_SUPABASE_ANON_KEY` | same | Anon key. Public by design; RLS enforces access. Not a leak. |
-
-### 2. Server-secret tier
-
-Must **never** reach a browser or the repo. Platform-injected locally and hosted.
-
-| Secret | Home | Sensitivity | Must never appear in |
-|---|---|---|---|
-| `SUPABASE_SERVICE_ROLE_KEY` | Injected by Supabase into Edge Functions (`github-sync`) locally and hosted | **High** — bypasses RLS | web bundle, CLI, any repo file |
-| `GITHUB_APP_ID` | `github-token` Function secret: local `supabase/functions/.env`; hosted via `supabase secrets set` | Low | web bundle, CLI |
-| `GITHUB_APP_PRIVATE_KEY` | same; local PEM source is `secrets/envkey.pem` (gitignored) | **High** — signs the app JWT | any committed file |
-
-Local PEM source of truth: **`secrets/envkey.pem`** (gitignored — see
-`secrets/README.md`). The `github-sync` function needs **no repo-side secret
-file**: its only secret is the platform-injected service-role key.
-
-### 3. CI tier — GitHub Actions repo secrets
-
-| Secret | Home | Sensitivity |
-|---|---|---|
-| `AGENTJIRA_SYNC_URL` | GHA repo secret | Low — the `github-sync` function URL |
-| `AGENTJIRA_SECRET` | GHA repo secret | **Sensitive** — mirror of the project's `webhook_secret` |
-
-### 4. Shared-secret tier
-
-| Secret | Canonical home | Mirrored to | Sensitivity |
-|---|---|---|---|
-| per-project `webhook_secret` | the `projects` Postgres row (`encode(gen_random_bytes(32), 'hex')`) | GHA repo secret `AGENTJIRA_SECRET` | **Sensitive** |
-
-One canonical home (the DB row); the GHA secret is a **mirror**, never a second
-source of truth. It appears in **no** repo `.env` file.
-
-### 5. Agent CLI tier
-
-CLI settings are **env vars**; the only thing on disk is the cached session
-token, in the user's home and never the repo tree.
-
-| Secret | Home | Sensitivity |
-|---|---|---|
-| `AGENTJIRA_URL` | env var | Low |
-| `AGENTJIRA_ANON_KEY` | env var | Low (public) |
-| `AGENTJIRA_EMAIL` | env var | Sensitive |
-| `AGENTJIRA_PASSWORD` | env var | **Sensitive** |
-| session token | `~/.agentjira/session.json` (mode `0600`) | **Sensitive** |
-
-Every CLI setting is an env var, validated in `cli/src/env.ts` at import. The CLI
-reads no config file, so no setting — secret or not — is ever written to disk.
-The session token is the sole exception: it is minted at sign-in rather than
-supplied, so it is cached at `0600`.
+`webhook_secret` has one home, the DB row; the GHA secret is a **mirror**, never a
+second source of truth. It appears in **no** repo `.env` file.
 
 **Deliberate design decision: there is no `cli/.env.example`, and the CLI loads
 no `.env` file.** CLI credentials belong in the process environment, not the repo
 tree. Adding a `cli/.env.example` would invite users to create a `cli/.env`
-inside the repo — exactly the pattern this design forbids. The tier table above
-documents CLI configuration in place of a dotenv template.
+inside the repo — exactly the pattern this design forbids.
 
 ## Local-dev-only fixtures (intentionally committed)
 
-These are committed **on purpose**, are deliberately weak, and are **never valid
-anywhere hosted**:
-
-| Fixture | Value | Boundary |
-|---|---|---|
-| `supabase/seed.sql` dev password | `agentjira-dev` | seed.sql **never runs against a hosted project** |
-| `supabase/seed.sql` dev `webhook_secret` | `agentjira-dev-webhook-secret` | same |
+`supabase/seed.sql` does not exist yet. When it lands it carries a dev password
+and a dev `webhook_secret` that are committed **on purpose**, are deliberately
+weak, and are **never valid anywhere hosted**.
 
 Design boundary: **`seed.sql` never runs against a hosted project.** Its weak
 values are acceptable precisely because they are local-only.
-
-## Full secret matrix
-
-| Secret | Canonical home | Who may read it | Sensitivity | Must never appear in |
-|---|---|---|---|---|
-| `VITE_SUPABASE_URL` | `web/.env` / hosting build env | anyone (public) | Public | — |
-| `VITE_SUPABASE_ANON_KEY` | `web/.env` / hosting build env | anyone (public) | Public | — (public by design) |
-| `SUPABASE_SERVICE_ROLE_KEY` | platform-injected into Edge Functions | `github-sync` only | High | web, CLI, repo |
-| `GITHUB_APP_ID` | `github-token` Function secret | `github-token` only | Low | web, CLI |
-| `GITHUB_APP_PRIVATE_KEY` | `github-token` Function secret; local source `secrets/envkey.pem` | `github-token` only | High | any committed file |
-| `AGENTJIRA_SYNC_URL` | GHA repo secret | the GHA | Low | repo `.env` |
-| `AGENTJIRA_SECRET` | GHA repo secret (mirror of `webhook_secret`) | the GHA, `github-sync` | Sensitive | repo `.env` |
-| `webhook_secret` | `projects` Postgres row | web owner UI; `github-sync` | Sensitive | any repo `.env` |
-| `AGENTJIRA_URL` | env var | the user's CLI | Low | repo tree |
-| `AGENTJIRA_ANON_KEY` | env var | the user's CLI | Low (public) | repo tree |
-| `AGENTJIRA_EMAIL` | env var | the user's CLI | Sensitive | repo tree |
-| `AGENTJIRA_PASSWORD` | env var | the user's CLI | Sensitive | repo tree, any file on disk |
-| CLI session token | `~/.agentjira/session.json` (`0600`) | the user's CLI | Sensitive | repo tree |
-| seed dev password | `supabase/seed.sql` (committed) | local dev | Weak, local-only | any hosted project |
-| seed dev `webhook_secret` | `supabase/seed.sql` (committed) | local dev | Weak, local-only | any hosted project |
 
 ## CI enforcement
 
@@ -153,6 +90,9 @@ workstreams:
 - **seed.sql weak dev password + dev `webhook_secret`** are weak but local-only
   by design and acceptable as-is; the only real risk is that `seed.sql` must never
   touch a hosted project.
+- **v0 left a plaintext `~/.agentjira/config.json`** on machines that ran it.
+  AgentAssembly never reads, writes or removes it — the file is the user's to
+  delete once v0 is retired.
 
 ## Cross-references
 
