@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Subtitle > matches snapshot 1`] = `
+<div>
+  <p
+    class="subtitle"
+  >
+    Welcome back to AgentAssembly.
+  </p>
+</div>
+`;
