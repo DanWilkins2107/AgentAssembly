@@ -15,10 +15,6 @@
     opacity: 0;
     transform: translateY(0.9rem) scale(0.985);
   }
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 .login-form__header {
@@ -37,127 +33,8 @@
   padding: 1.75rem 2rem 2rem;
 }
 
-.login-form__mark {
-  width: 2.25rem;
-  height: 0.3rem;
-  margin-bottom: 0.5rem;
-  border-radius: 999px;
-  background: var(--accent);
-  animation: login-form-mark 520ms var(--spring) 120ms both;
-}
-
-@keyframes login-form-mark {
-  from {
-    opacity: 0;
-    transform: scaleX(0.2);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.login-form__title {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.login-form__subtitle {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.login-form__error {
-  margin: 0;
-  padding: 0.65rem 0.85rem;
-  border-left: 3px solid var(--danger);
-  border-radius: 0.25rem 0.7rem 0.7rem 0.25rem;
-  background: var(--danger-soft);
-  color: var(--danger);
-  font-size: 0.875rem;
-  animation: login-form-shake 400ms ease-in-out both;
-}
-
-@keyframes login-form-shake {
-  0%,
-  100% {
-    transform: none;
-  }
-  25% {
-    transform: translateX(-0.3rem);
-  }
-  55% {
-    transform: translateX(0.25rem);
-  }
-  80% {
-    transform: translateX(-0.12rem);
-  }
-}
-
-.login-form__submit {
-  margin-top: 0.35rem;
-  padding: 0.8rem 1rem;
-  border: none;
-  border-radius: 0.7rem;
-  background: var(--accent);
-  color: var(--surface);
-  font: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 0.4rem 0.9rem rgba(23, 45, 39, 0.16);
-  transition:
-    background-color 180ms ease,
-    transform 220ms var(--spring),
-    box-shadow 200ms ease;
-}
-
-.login-form__submit:hover:not(:disabled) {
-  background: var(--accent-strong);
-  transform: translateY(-0.12rem);
-  box-shadow: 0 0.7rem 1.2rem rgba(23, 45, 39, 0.2);
-}
-
-.login-form__submit:active:not(:disabled) {
-  transform: translateY(0.06rem) scale(0.99);
-  box-shadow: 0 0.25rem 0.5rem rgba(23, 45, 39, 0.16);
-}
-
-.login-form__submit:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-
-.login-form__submit:disabled {
-  background: var(--accent-strong);
-  box-shadow: none;
-  cursor: progress;
-  animation: login-form-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes login-form-pulse {
-  50% {
-    opacity: 0.72;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .login-form,
-  .login-form__mark,
-  .login-form__error,
-  .login-form__submit:disabled {
+  .login-form {
     animation: none;
-  }
-
-  .login-form__submit {
-    transition: background-color 180ms ease;
-  }
-
-  .login-form__submit:hover:not(:disabled),
-  .login-form__submit:active:not(:disabled) {
-    transform: none;
   }
 }

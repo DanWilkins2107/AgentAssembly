@@ -1,0 +1,56 @@
+.submit-button {
+  padding: 0.8rem 1rem;
+  border: none;
+  border-radius: 0.7rem;
+  background: var(--accent);
+  color: var(--surface);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-accent);
+  transition:
+    background-color 180ms ease,
+    transform 220ms var(--spring),
+    box-shadow 200ms ease;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: var(--accent-strong);
+  transform: translateY(-0.12rem);
+  box-shadow: var(--shadow-accent-lift);
+}
+
+.submit-button:active:not(:disabled) {
+  transform: translateY(0.06rem) scale(0.99);
+}
+
+.submit-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.submit-button:disabled {
+  background: var(--accent-strong);
+  box-shadow: none;
+  cursor: progress;
+  animation: submit-button-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes submit-button-pulse {
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .submit-button {
+    transition: background-color 180ms ease;
+    animation: none;
+  }
+
+  .submit-button:hover:not(:disabled),
+  .submit-button:active:not(:disabled) {
+    transform: none;
+  }
+}

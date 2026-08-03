@@ -40,12 +40,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .field__input {
-    transition:
-      border-color 160ms ease,
-      box-shadow 200ms ease;
-  }
-
   .field__input:focus-visible {
     transform: none;
   }

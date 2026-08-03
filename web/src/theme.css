@@ -13,6 +13,8 @@
   --danger: #8c332c;
   --danger-soft: #f2e4e2;
   --shadow: 0 1.25rem 2.5rem rgba(23, 45, 39, 0.09);
+  --shadow-accent: 0 0.4rem 0.9rem rgba(23, 45, 39, 0.16);
+  --shadow-accent-lift: 0 0.7rem 1.2rem rgba(23, 45, 39, 0.2);
   --radius: 1rem;
   --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --font: "Outfit Variable", system-ui, sans-serif;
@@ -20,6 +22,7 @@
 
 body {
   margin: 0;
+  min-height: 100dvh;
   background:
     radial-gradient(
       70rem 38rem at 50% -18%,

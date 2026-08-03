@@ -1,0 +1,30 @@
+.title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.title__mark {
+  width: 2.25rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: title-mark 520ms var(--spring) 120ms both;
+}
+
+@keyframes title-mark {
+  from {
+    opacity: 0;
+    transform: scaleX(0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title__mark {
+    animation: none;
+  }
+}
