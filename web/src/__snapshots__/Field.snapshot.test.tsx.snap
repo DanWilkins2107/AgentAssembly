@@ -1,0 +1,24 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Field > matches snapshot 1`] = `
+<div>
+  <label
+    class="field"
+    for="login-email"
+  >
+    <span
+      class="field__label"
+    >
+      Email
+    </span>
+    <input
+      autocomplete="email"
+      class="field__input"
+      id="login-email"
+      name="email"
+      required=""
+      type="email"
+    />
+  </label>
+</div>
+`;

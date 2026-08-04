@@ -1,5 +1,9 @@
 import type { FormEvent } from "react";
 import { Field } from "./Field";
+import { FormError } from "./FormError";
+import { SubmitButton } from "./SubmitButton";
+import { Subtitle } from "./Subtitle";
+import { Title } from "./Title";
 import "./LoginForm.css";
 
 export type LoginFormProps = {
@@ -17,26 +21,24 @@ export function LoginForm({ onSubmit, error, loading }: LoginFormProps) {
 
   return (
     <form className="login-form" onSubmit={handleSubmit}>
-      <h1 className="login-form__title">Sign in</h1>
-      <p className="login-form__subtitle">Welcome back to AgentAssembly.</p>
+      <header className="login-form__header">
+        <Title>Sign in</Title>
+        <Subtitle>Welcome back to AgentAssembly.</Subtitle>
+      </header>
 
-      <Field name="email" label="Email" type="email" autoComplete="email" />
-      <Field
-        name="password"
-        label="Password"
-        type="password"
-        autoComplete="current-password"
-      />
-
-      {error && (
-        <p className="login-form__error" role="alert">
-          {error}
-        </p>
-      )}
-
-      <button className="login-form__submit" type="submit" disabled={loading}>
-        {loading ? "Signing in…" : "Sign in"}
-      </button>
+      <div className="login-form__body">
+        <Field name="email" label="Email" type="email" autoComplete="email" />
+        <Field
+          name="password"
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+        />
+        <FormError message={error} />
+        <SubmitButton loading={loading} loadingLabel="Signing in…">
+          Sign in
+        </SubmitButton>
+      </div>
     </form>
   );
 }

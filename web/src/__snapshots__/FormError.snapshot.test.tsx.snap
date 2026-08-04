@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`FormError > matches snapshot 1`] = `
+<div>
+  <p
+    class="form-error"
+    role="alert"
+  >
+    Email or password is incorrect.
+  </p>
+</div>
+`;
