@@ -2,8 +2,73 @@
 
 exports[`App > matches snapshot 1`] = `
 <div>
-  <h1>
-    AgentAssembly
-  </h1>
+  <form
+    class="login-form"
+  >
+    <header
+      class="login-form__header"
+    >
+      <h1
+        class="title"
+      >
+        <span
+          aria-hidden="true"
+          class="title__mark"
+        />
+        Sign in
+      </h1>
+      <p
+        class="subtitle"
+      >
+        Welcome back to AgentAssembly.
+      </p>
+    </header>
+    <div
+      class="login-form__body"
+    >
+      <label
+        class="field"
+        for="login-email"
+      >
+        <span
+          class="field__label"
+        >
+          Email
+        </span>
+        <input
+          autocomplete="email"
+          class="field__input"
+          id="login-email"
+          name="email"
+          required=""
+          type="email"
+        />
+      </label>
+      <label
+        class="field"
+        for="login-password"
+      >
+        <span
+          class="field__label"
+        >
+          Password
+        </span>
+        <input
+          autocomplete="current-password"
+          class="field__input"
+          id="login-password"
+          name="password"
+          required=""
+          type="password"
+        />
+      </label>
+      <button
+        class="submit-button"
+        type="submit"
+      >
+        Sign in
+      </button>
+    </div>
+  </form>
 </div>
 `;
