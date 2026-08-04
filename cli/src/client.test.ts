@@ -3,16 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthError, connect } from "./client.js";
 import { clearSession, getSession, setSession } from "./session.js";
 
-// The real env.ts parses process.env at import time and throws when the vars
-// are unset, which is how CI runs the suite, so it is replaced wholesale.
-vi.mock("./env.js", () => ({
-  env: {
-    AGENTJIRA_URL: "https://store.example",
-    AGENTJIRA_ANON_KEY: "anon-key",
-    AGENTJIRA_EMAIL: "agent@example.com",
-    AGENTJIRA_PASSWORD: "agent-password",
-  },
-}));
+// The AGENTJIRA_* values asserted below are pinned by test.env in vitest.config.ts.
 vi.mock("@supabase/supabase-js", () => ({ createClient: vi.fn() }));
 vi.mock("./session.js", () => ({
   getSession: vi.fn(),

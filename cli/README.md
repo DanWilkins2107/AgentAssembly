@@ -17,8 +17,6 @@ touch a project it was not launched for.
 import { getSession, setSession, clearSession } from "agentassembly-cli/session";
 ```
 
-Cached in `~/.agentjira/session.json`, the only CLI state on disk.
-
 ## Authenticated client
 
 ```ts
