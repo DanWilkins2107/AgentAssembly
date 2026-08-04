@@ -20,11 +20,8 @@ vi.mock("./session.js", () => ({
   clearSession: vi.fn(),
 }));
 
-// Stands in for the object createClient returns. connect() only ever touches
-// .auth on it and hands it back untouched, so the two methods it calls are the
-// whole stub. Widening to never at the mock boundary below is the one cast left
-// here: a real SupabaseClient has ~40 more members and is generic over the
-// database schema, so no honest annotation makes this object one.
+// Fake supabase client: connect() only touches .auth and hands the object back.
+// Cast at the mock boundary below because the real type has ~40 more members.
 const auth = { setSession: vi.fn(), signInWithPassword: vi.fn() };
 const supabaseClient = { auth };
 
@@ -67,26 +64,23 @@ describe("connect", () => {
     expect(setSession).toHaveBeenCalledWith(tokens("rotated"));
   });
 
-  it("clears the cached session and throws when the refresh fails", async () => {
-    const cause = new Error("token rejected");
-    vi.mocked(getSession).mockResolvedValue(tokens("cached"));
-    auth.setSession.mockResolvedValue({ data: { session: null }, error: cause });
-    const error = await connect().catch((thrown: unknown) => thrown);
-    expect(error).toBeInstanceOf(AuthError);
-    expect(error).toMatchObject({
-      name: "AuthError",
-      message: expect.stringMatching(/failed to refresh the cached session/),
-      cause,
-    });
-    expect(clearSession).toHaveBeenCalledTimes(1);
-    expect(setSession).not.toHaveBeenCalled();
+  it("signs in with the password when the cached session is too stale to resume", async () => {
+    vi.mocked(getSession).mockResolvedValue(tokens("stale"));
+    auth.setSession.mockResolvedValue({ data: { session: null }, error: new Error("expired") });
+    auth.signInWithPassword.mockResolvedValue({ data: { session: tokens("fresh") }, error: null });
+    await expect(connect()).resolves.toBe(supabaseClient);
+    expect(auth.signInWithPassword).toHaveBeenCalledOnce();
+    expect(setSession).toHaveBeenCalledWith(tokens("fresh"));
+    expect(clearSession).not.toHaveBeenCalled();
   });
 
   it("clears the session and throws when the password sign-in fails", async () => {
-    const failure = { data: { session: null }, error: new Error("invalid credentials") };
-    auth.signInWithPassword.mockResolvedValue(failure);
-    await expect(connect()).rejects.toThrow(/failed to sign in/);
-    expect(clearSession).toHaveBeenCalledTimes(1);
+    const cause = new Error("invalid credentials");
+    auth.signInWithPassword.mockResolvedValue({ data: { session: null }, error: cause });
+    const error = await connect().catch((thrown: unknown) => thrown);
+    expect(error).toBeInstanceOf(AuthError);
+    expect(error).toMatchObject({ name: "AuthError", message: "failed to sign in", cause });
+    expect(clearSession).toHaveBeenCalledOnce();
     expect(setSession).not.toHaveBeenCalled();
   });
 });
