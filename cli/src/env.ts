@@ -1,10 +1,12 @@
 import { z } from "zod";
 
+const required = z.string().min(1);
+
 const envSchema = z.object({
   AGENTJIRA_URL: z.url(),
-  AGENTJIRA_ANON_KEY: z.string().min(1),
-  AGENTJIRA_EMAIL: z.string().min(1),
-  AGENTJIRA_PASSWORD: z.string().min(1).optional(),
+  AGENTJIRA_ANON_KEY: required,
+  AGENTJIRA_EMAIL: required,
+  AGENTJIRA_PASSWORD: required,
 });
 
 export type Env = z.infer<typeof envSchema>;

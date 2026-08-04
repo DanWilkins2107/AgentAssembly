@@ -1,0 +1,47 @@
+import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
+import { env } from "./env.js";
+import { clearSession, getSession, setSession, type SessionBundle } from "./session.js";
+
+export class AuthError extends Error {
+  name = "AuthError";
+}
+
+// Supabase returns a null session on every auth failure, so its absence is the
+// failure signal; the accompanying error is kept as the cause.
+async function resume(client: SupabaseClient, cached: SessionBundle): Promise<Session | null> {
+  const { data } = await client.auth.setSession(cached);
+  return data.session;
+}
+
+async function signIn(client: SupabaseClient): Promise<Session> {
+  const { data, error } = await client.auth.signInWithPassword({
+    email: env.AGENTJIRA_EMAIL,
+    password: env.AGENTJIRA_PASSWORD,
+  });
+  if (data.session) return data.session;
+  await clearSession();
+  throw new AuthError("failed to sign in", { cause: error });
+}
+
+async function authenticate(client: SupabaseClient): Promise<Session> {
+  const cached = await getSession();
+  const resumed = cached ? await resume(client, cached) : null;
+  return resumed ?? signIn(client);
+}
+
+export async function connect(): Promise<SupabaseClient> {
+  // Node has no localStorage, so supabase-js would fall back to in-memory
+  // storage: tokens would die with the process and every command would sign in
+  // again. session.ts is the durable store instead. autoRefreshToken is off
+  // because its background timer would outlive a one-shot CLI command; the
+  // setSession call in resume() still refreshes an expired access token.
+  const client = createClient(env.AGENTJIRA_URL, env.AGENTJIRA_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const session = await authenticate(client);
+  await setSession({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+  });
+  return client;
+}
