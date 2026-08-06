@@ -1,14 +1,14 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { App } from "./App";
+import { Login } from "./page";
 
-vi.mock("./supabase", () => ({
+vi.mock("./elements/supabase", () => ({
   supabase: { auth: { signInWithPassword: vi.fn() } },
 }));
 
-describe("App", () => {
+describe("Login", () => {
   it("matches snapshot", () => {
-    const { container } = render(<App />);
+    const { container } = render(<Login />);
     expect(container).toMatchSnapshot();
   });
 });

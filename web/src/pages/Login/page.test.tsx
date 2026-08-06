@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import { App } from "./App";
-import { supabase } from "./supabase";
+import { Login } from "./page";
+import { supabase } from "./elements/supabase";
 
-vi.mock("./supabase", () => ({
+vi.mock("./elements/supabase", () => ({
   supabase: { auth: { signInWithPassword: vi.fn() } },
 }));
 
@@ -25,10 +25,10 @@ function submit(email = "ada@example.com", password = "hunter2") {
   fireEvent.click(screen.getByRole("button"));
 }
 
-describe("App", () => {
+describe("Login", () => {
   it("signs in with the entered credentials", async () => {
     signInWithPassword.mockResolvedValue({ error: null });
-    render(<App />);
+    render(<Login />);
 
     submit();
 
@@ -44,7 +44,7 @@ describe("App", () => {
     signInWithPassword.mockResolvedValue({
       error: { message: "Invalid login credentials" },
     });
-    render(<App />);
+    render(<Login />);
 
     submit();
 
@@ -56,7 +56,7 @@ describe("App", () => {
     signInWithPassword.mockResolvedValue({
       error: { message: "Invalid login credentials" },
     });
-    render(<App />);
+    render(<Login />);
     submit();
     await screen.findByRole("alert");
 
@@ -73,7 +73,7 @@ describe("App", () => {
         finish = resolve;
       }),
     );
-    render(<App />);
+    render(<Login />);
 
     submit();
 
