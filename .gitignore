@@ -6,6 +6,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.test
 
 secrets/*
 !secrets/README.md
