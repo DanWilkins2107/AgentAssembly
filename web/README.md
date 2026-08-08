@@ -9,6 +9,7 @@
 - Applies to every module, not just components: hooks, contexts, clients, helpers.
 - `<Name>.css`, `<Name>.test.tsx`, `<Name>.snapshot.test.tsx` and `__snapshots__/` sit beside the module.
 - `src/` root holds `main.tsx`, `theme.css`, `vite-env.d.ts` and nothing else. Router wiring goes in `main.tsx` when it lands.
+- Colour literals live only in `theme.css`; everything else uses `var(--…)`.
 
 ## Snapshot tests
 
