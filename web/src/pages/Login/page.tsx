@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { LoginForm } from "./LoginForm";
-import { supabase } from "./supabase";
+import { LoginForm } from "./elements/LoginForm/LoginForm";
+import { supabase } from "./elements/supabase/supabase";
 
-export function App() {
+export function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
