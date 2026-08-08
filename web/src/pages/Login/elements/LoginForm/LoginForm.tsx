@@ -1,9 +1,9 @@
 import type { FormEvent } from "react";
-import { Field } from "./Field";
-import { FormError } from "./FormError";
-import { SubmitButton } from "./SubmitButton";
-import { Subtitle } from "./Subtitle";
-import { Title } from "./Title";
+import { Field } from "./elements/Field";
+import { FormError } from "./elements/FormError";
+import { SubmitButton } from "./elements/SubmitButton";
+import { Subtitle } from "./elements/Subtitle";
+import { Title } from "./elements/Title";
 import "./LoginForm.css";
 
 export type LoginFormProps = {
