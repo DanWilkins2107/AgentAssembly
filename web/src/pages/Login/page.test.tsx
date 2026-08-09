@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { Login } from "./page";
-import { supabase } from "./elements/supabase/supabase";
+import { supabase } from "../../elements/supabase/supabase";
 
-vi.mock("./elements/supabase/supabase", () => ({
+vi.mock("../../elements/supabase/supabase", () => ({
   supabase: { auth: { signInWithPassword: vi.fn() } },
 }));
 
