@@ -6,5 +6,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
+    // tests/palette-gate.test.ts reads .css files raw; vitest stubs them empty without this.
+    css: true,
   },
 });
