@@ -1,0 +1,24 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Home > matches snapshot 1`] = `
+<div>
+  <main
+    class="home"
+  >
+    <span
+      aria-hidden="true"
+      class="home__mark"
+    />
+    <h1
+      class="home__title"
+    >
+      AgentAssembly
+    </h1>
+    <p
+      class="home__note"
+    >
+      Nothing here yet.
+    </p>
+  </main>
+</div>
+`;

@@ -1,0 +1,41 @@
+.home {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: min(28rem, calc(100% - 2rem));
+  margin: min(6rem, 16vh) auto;
+  animation: home-rise 460ms var(--spring) both;
+}
+
+@keyframes home-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.9rem);
+  }
+}
+
+.home__mark {
+  width: 2.25rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.home__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.home__note {
+  margin: 0;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home {
+    animation: none;
+  }
+}
