@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { LoginForm } from "./elements/LoginForm/LoginForm";
-import { supabase } from "./elements/supabase/supabase";
+import { supabase } from "../../elements/supabase/supabase";
 
 export function Login() {
   const [loading, setLoading] = useState(false);

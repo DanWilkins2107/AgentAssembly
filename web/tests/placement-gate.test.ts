@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 
 const ROOT_FILES = ["main.tsx", "theme.css", "vite-env.d.ts"];
 const NAME = String.raw`[\w-]+`;
-const EXT = String.raw`(?:tsx|ts|css|test\.tsx|snapshot\.test\.tsx)`;
+const EXT = String.raw`(?:tsx|ts|css|test\.ts|test\.tsx|snapshot\.test\.tsx)`;
 const SNAP = String.raw`snapshot\.test\.tsx\.snap`;
 
 const IS_NAME = new RegExp(`^${NAME}$`);
@@ -48,6 +48,7 @@ it("the placement check flags misplaced modules", () => {
   expect(isPlaced("pages/Home/page.tsx")).toBe(true);
   expect(isPlaced("pages/Home/elements/Foo.tsx")).toBe(true);
   expect(isPlaced("pages/Home/elements/Foo/Foo.tsx")).toBe(true);
+  expect(isPlaced("elements/useThing.test.ts")).toBe(true);
   expect(isPlaced("pages/Home/stray.tsx")).toBe(false);
   expect(isPlaced("pages/Home/elements/Foo/Bar.tsx")).toBe(false);
   expect(isPlaced("components/Button.tsx")).toBe(false);

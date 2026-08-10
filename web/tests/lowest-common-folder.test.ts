@@ -9,7 +9,14 @@ type TemporaryExclude = {
   reason: string;
 };
 
-const TEMPORARY_EXCLUDES: TemporaryExclude[] = [];
+const TEMPORARY_EXCLUDES: TemporaryExclude[] = [
+  {
+    path: "src/elements/useSession.ts",
+    node: "b00c0ae5",
+    expires: "2026-08-15",
+    reason: "route guard b00c0ae5 is the first consumer",
+  },
+];
 
 const NODE_ID = /^[0-9a-f]{8}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
