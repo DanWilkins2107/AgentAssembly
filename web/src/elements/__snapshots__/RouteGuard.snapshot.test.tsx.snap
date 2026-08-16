@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`RouteGuard > matches snapshot 1`] = `
+<div>
+  <p>
+    protected
+  </p>
+</div>
+`;
