@@ -14,6 +14,7 @@ create type public.node_status as enum (
   'evaluating_soft_block',
   'pr_raised',
   'pr_changes_requested',
+  'pr_base_moved',
   'done',
   'invalidated'
 );

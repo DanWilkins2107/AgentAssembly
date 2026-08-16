@@ -13,7 +13,7 @@ select is(
     'human_braindump_needed', 'awaiting_agent_breakdown', 'awaiting_human_response',
     'split_proposed', 'split_approved', 'broken_down', 'awaiting_agent_spec',
     'spec_review', 'ready_for_pickup', 'human_only_action', 'evaluating_soft_block',
-    'pr_raised', 'pr_changes_requested', 'done', 'invalidated'
+    'pr_raised', 'pr_changes_requested', 'pr_base_moved', 'done', 'invalidated'
   ],
   'node_status labels, in order'
 );
