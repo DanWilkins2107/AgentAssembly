@@ -19,6 +19,16 @@ exports[`Home > matches snapshot 1`] = `
     >
       Nothing here yet.
     </p>
+    <div
+      class="sign-out"
+    >
+      <button
+        class="sign-out__button"
+        type="button"
+      >
+        Sign out
+      </button>
+    </div>
   </main>
 </div>
 `;
