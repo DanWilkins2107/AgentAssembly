@@ -11,8 +11,17 @@ build/
 secrets/*
 !secrets/README.md
 
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
+*.swp
 supabase/.temp/
 supabase/.branches/
 .vite/
