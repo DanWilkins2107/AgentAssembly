@@ -13,7 +13,6 @@ create type public.node_status as enum (
   'spec_review',
   'ready_for_pickup',
   'human_only_action',
-  'evaluating_soft_block',
   'pr_raised',
   'pr_changes_requested',
   'pr_base_moved',
@@ -25,8 +24,6 @@ create type public.edge_type as enum (
   'subtask',
   'firm_block',
   'firm_block_plan',
-  'soft_block',
-  'soft_block_plan',
   'reassess_after',
   'relates_to'
 );

@@ -12,8 +12,8 @@ select is(
   array[
     'human_braindump_needed', 'awaiting_agent_breakdown', 'awaiting_human_response',
     'split_proposed', 'split_approved', 'broken_down', 'awaiting_agent_spec',
-    'spec_review', 'ready_for_pickup', 'human_only_action', 'evaluating_soft_block',
-    'pr_raised', 'pr_changes_requested', 'pr_base_moved', 'done', 'invalidated'
+    'spec_review', 'ready_for_pickup', 'human_only_action', 'pr_raised',
+    'pr_changes_requested', 'pr_base_moved', 'done', 'invalidated'
   ],
   'node_status labels, in order'
 );
@@ -22,8 +22,7 @@ select is(
   (select array_agg(enumlabel::text order by enumsortorder)
      from pg_enum where enumtypid = 'public.edge_type'::regtype),
   array[
-    'subtask', 'firm_block', 'firm_block_plan', 'soft_block', 'soft_block_plan',
-    'reassess_after', 'relates_to'
+    'subtask', 'firm_block', 'firm_block_plan', 'reassess_after', 'relates_to'
   ],
   'edge_type labels, in order'
 );
