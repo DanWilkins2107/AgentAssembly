@@ -1,7 +1,3 @@
--- Machine audit trail: status transitions, claims, edge changes. Deliberately
--- carries no foreign keys -- an audit record must never be gated by, or
--- deletable through, another table's rows. `messages` is the human-readable
--- thread; this table is the machine record.
 create table public.events (
   id bigint generated always as identity primary key,
   project_id uuid not null,
@@ -19,7 +15,5 @@ create table public.events (
 create index events_project_id_created_at_idx on public.events (project_id, created_at);
 create index events_node_id_idx on public.events (node_id);
 
--- RLS on with zero policies: nothing is readable until slice 8c320d4b adds
--- grants and policies. supabase/tests/access_coverage_test.sql enforces this.
--- Append-only enforcement (revoking UPDATE/DELETE) lands with those grants.
+-- TODO 8c320d4b: grants, RLS policies, and append-only (revoke UPDATE/DELETE).
 alter table public.events enable row level security;

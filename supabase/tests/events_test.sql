@@ -1,13 +1,8 @@
--- Schema shape for migration 0007_events.sql. Scoped to `events` only so
--- sibling table slices stay independent of this file. Run by `supabase test db`.
-
 begin;
 create extension if not exists pgtap;
 select plan(32);
 
--- ---------------------------------------------------------------------------
--- The table and its columns
--- ---------------------------------------------------------------------------
+-- Columns
 
 select has_table('public', 'events', 'table public.events exists');
 
@@ -27,11 +22,7 @@ select col_type_is('public', 'events', 'type',       'text',                    
 select col_type_is('public', 'events', 'data',       'jsonb',                    'data is jsonb');
 select col_type_is('public', 'events', 'created_at', 'timestamp with time zone', 'created_at is timestamptz');
 
--- ---------------------------------------------------------------------------
--- Nullability: an event always knows its project, actor role, type and time.
--- The subject node and the acting user are optional -- system events have
--- neither.
--- ---------------------------------------------------------------------------
+-- Nullability
 
 select col_not_null('public', 'events', 'id',         'id is NOT NULL');
 select col_not_null('public', 'events', 'project_id', 'project_id is NOT NULL');
@@ -43,9 +34,7 @@ select col_not_null('public', 'events', 'created_at', 'created_at is NOT NULL');
 select col_is_null('public', 'events', 'node_id',  'node_id is nullable: not every event has a subject node');
 select col_is_null('public', 'events', 'actor_id', 'actor_id is nullable: system events have no acting user');
 
--- ---------------------------------------------------------------------------
 -- Defaults
--- ---------------------------------------------------------------------------
 
 select is(
   (select pg_get_expr(default_expr.adbin, default_expr.adrelid)
@@ -71,9 +60,7 @@ select is(
   'created_at defaults to now()'
 );
 
--- ---------------------------------------------------------------------------
--- Primary key: a machine-generated identity, never supplied by the writer
--- ---------------------------------------------------------------------------
+-- Primary key
 
 select col_is_pk('public', 'events', 'id', 'id is the primary key');
 
@@ -86,16 +73,11 @@ select is(
   'id is GENERATED ALWAYS AS IDENTITY'
 );
 
--- ---------------------------------------------------------------------------
--- No foreign keys, by design: an audit record must never be gated by, or
--- deletable through, another table's rows.
--- ---------------------------------------------------------------------------
+-- Foreign keys
 
 select hasnt_fk('public', 'events', 'events deliberately has no foreign keys');
 
--- ---------------------------------------------------------------------------
--- CHECK constraints: actor_role is a closed set, type is length-capped only
--- ---------------------------------------------------------------------------
+-- CHECK constraints
 
 select set_eq(
   $$ select conname::text from pg_constraint
@@ -120,10 +102,7 @@ select throws_ok(
   'inserting a type longer than 100 characters is rejected'
 );
 
--- ---------------------------------------------------------------------------
--- Indexes: the two queries that run are the project timeline and the per-node
--- history.
--- ---------------------------------------------------------------------------
+-- Indexes
 
 select indexes_are(
   'public', 'events',
@@ -142,10 +121,7 @@ select has_index(
   'per-node history index is on (node_id)'
 );
 
--- ---------------------------------------------------------------------------
--- Access starting point: RLS on, zero policies, so nothing is readable until
--- slice 8c320d4b adds grants and policies.
--- ---------------------------------------------------------------------------
+-- Access
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.events'::regclass),
@@ -158,9 +134,7 @@ select is_empty(
   'events has no RLS policies yet: grants and policies land in slice 8c320d4b'
 );
 
--- ---------------------------------------------------------------------------
--- Writing a minimal event: only project_id, actor_role and type are required
--- ---------------------------------------------------------------------------
+-- Minimal insert
 
 insert into public.events (project_id, actor_role, type)
 values ('00000000-0000-0000-0000-0000000000b1', 'system', 'minimal_insert_test');
