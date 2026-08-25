@@ -16,6 +16,7 @@ secrets/*
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+.terraform.lock.hcl
 
 .DS_Store
 Thumbs.db
