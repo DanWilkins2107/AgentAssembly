@@ -1,4 +1,6 @@
 terraform {
+  # No backend block on purpose: this stack creates the S3 bucket and lock table
+  # the root config uses as its backend, so its own state stays local (gitignored).
   required_version = ">= 1.5"
 
   required_providers {

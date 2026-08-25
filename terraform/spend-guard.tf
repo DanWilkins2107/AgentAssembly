@@ -34,7 +34,7 @@ resource "aws_sns_topic_subscription" "spend_alerts_email" {
   provider  = aws.us_east_1
   topic_arn = aws_sns_topic.spend_alerts.arn
   protocol  = "email"
-  endpoint  = "danwilkins2003@gmail.com"
+  endpoint  = var.spend_alert_email
 }
 
 resource "aws_budgets_budget" "monthly" {
