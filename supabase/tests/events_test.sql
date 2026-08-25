@@ -1,65 +1,107 @@
--- Schema shape for migration 0007_events.sql: the audit table's columns, its
--- identity primary key, the deliberate absence of foreign keys, both CHECKs,
--- both indexes, and the RLS-on-with-no-policies starting point. Scoped to
--- `events` only so sibling table slices stay independent of this file. Run by
--- `supabase test db`.
+-- Schema shape for migration 0007_events.sql. Scoped to `events` only so
+-- sibling table slices stay independent of this file. Run by `supabase test db`.
 
 begin;
 create extension if not exists pgtap;
-select plan(11);
+select plan(32);
 
--- Catalog identifiers are `name`, which collates as "C"; results_eq compares
--- them against default-collation literals, so pin every side to "default".
-select results_eq(
-  $$ select column_name::text collate "default",
-            udt_name::text collate "default",
-            is_nullable::text collate "default",
-            coalesce(column_default, '')::text collate "default"
-       from information_schema.columns
-      where table_schema = 'public' and table_name = 'events'
-      order by column_name collate "C" $$,
-  $$ values ('actor_id'::text, 'uuid'::text, 'YES'::text, ''::text),
-            ('actor_role', 'text', 'NO', ''),
-            ('created_at', 'timestamptz', 'NO', 'now()'),
-            ('data', 'jsonb', 'NO', '''{}''::jsonb'),
-            ('id', 'int8', 'NO', ''),
-            ('node_id', 'uuid', 'YES', ''),
-            ('project_id', 'uuid', 'NO', ''),
-            ('type', 'text', 'NO', '') $$,
-  'events columns, types, nullability and defaults'
+-- ---------------------------------------------------------------------------
+-- The table and its columns
+-- ---------------------------------------------------------------------------
+
+select has_table('public', 'events', 'table public.events exists');
+
+select columns_are(
+  'public', 'events',
+  array['id', 'project_id', 'node_id', 'actor_id',
+        'actor_role', 'type', 'data', 'created_at'],
+  'events has exactly the eight audit columns and no others'
+);
+
+select col_type_is('public', 'events', 'id',         'bigint',                   'id is bigint');
+select col_type_is('public', 'events', 'project_id', 'uuid',                     'project_id is uuid');
+select col_type_is('public', 'events', 'node_id',    'uuid',                     'node_id is uuid');
+select col_type_is('public', 'events', 'actor_id',   'uuid',                     'actor_id is uuid');
+select col_type_is('public', 'events', 'actor_role', 'text',                     'actor_role is text');
+select col_type_is('public', 'events', 'type',       'text',                     'type is text');
+select col_type_is('public', 'events', 'data',       'jsonb',                    'data is jsonb');
+select col_type_is('public', 'events', 'created_at', 'timestamp with time zone', 'created_at is timestamptz');
+
+-- ---------------------------------------------------------------------------
+-- Nullability: an event always knows its project, actor role, type and time.
+-- The subject node and the acting user are optional -- system events have
+-- neither.
+-- ---------------------------------------------------------------------------
+
+select col_not_null('public', 'events', 'id',         'id is NOT NULL');
+select col_not_null('public', 'events', 'project_id', 'project_id is NOT NULL');
+select col_not_null('public', 'events', 'actor_role', 'actor_role is NOT NULL');
+select col_not_null('public', 'events', 'type',       'type is NOT NULL');
+select col_not_null('public', 'events', 'data',       'data is NOT NULL');
+select col_not_null('public', 'events', 'created_at', 'created_at is NOT NULL');
+
+select col_is_null('public', 'events', 'node_id',  'node_id is nullable: not every event has a subject node');
+select col_is_null('public', 'events', 'actor_id', 'actor_id is nullable: system events have no acting user');
+
+-- ---------------------------------------------------------------------------
+-- Defaults
+-- ---------------------------------------------------------------------------
+
+select is(
+  (select pg_get_expr(default_expr.adbin, default_expr.adrelid)
+     from pg_attrdef default_expr
+     join pg_attribute column_meta
+       on column_meta.attrelid = default_expr.adrelid
+      and column_meta.attnum = default_expr.adnum
+    where default_expr.adrelid = 'public.events'::regclass
+      and column_meta.attname = 'data'),
+  '''{}''::jsonb',
+  'data defaults to an empty jsonb object'
 );
 
 select is(
-  (select attidentity::text from pg_attribute
-    where attrelid = 'public.events'::regclass and attname = 'id'),
+  (select pg_get_expr(default_expr.adbin, default_expr.adrelid)
+     from pg_attrdef default_expr
+     join pg_attribute column_meta
+       on column_meta.attrelid = default_expr.adrelid
+      and column_meta.attnum = default_expr.adnum
+    where default_expr.adrelid = 'public.events'::regclass
+      and column_meta.attname = 'created_at'),
+  'now()',
+  'created_at defaults to now()'
+);
+
+-- ---------------------------------------------------------------------------
+-- Primary key: a machine-generated identity, never supplied by the writer
+-- ---------------------------------------------------------------------------
+
+select col_is_pk('public', 'events', 'id', 'id is the primary key');
+
+select is(
+  (select column_meta.attidentity::text
+     from pg_attribute column_meta
+    where column_meta.attrelid = 'public.events'::regclass
+      and column_meta.attname = 'id'),
   'a',
-  'events.id is GENERATED ALWAYS AS IDENTITY'
+  'id is GENERATED ALWAYS AS IDENTITY'
 );
 
-select is(
-  (select string_agg(attribute.attname, ',' order by key.ordinality)
-     from pg_constraint con
-     cross join lateral unnest(con.conkey) with ordinality as key(attnum, ordinality)
-     join pg_attribute attribute
-       on attribute.attrelid = con.conrelid and attribute.attnum = key.attnum
-    where con.conrelid = 'public.events'::regclass and con.contype = 'p'),
-  'id',
-  'primary key is (id)'
-);
+-- ---------------------------------------------------------------------------
+-- No foreign keys, by design: an audit record must never be gated by, or
+-- deletable through, another table's rows.
+-- ---------------------------------------------------------------------------
 
--- An audit record must never be gated by another table's rows, so project_id,
--- node_id and actor_id are plain uuid by design.
-select is_empty(
-  $$ select conname::text from pg_constraint
-      where conrelid = 'public.events'::regclass and contype = 'f' $$,
-  'events deliberately has no foreign keys'
-);
+select hasnt_fk('public', 'events', 'events deliberately has no foreign keys');
+
+-- ---------------------------------------------------------------------------
+-- CHECK constraints: actor_role is a closed set, type is length-capped only
+-- ---------------------------------------------------------------------------
 
 select set_eq(
   $$ select conname::text from pg_constraint
       where conrelid = 'public.events'::regclass and contype = 'c' $$,
   array['events_actor_role_allowed', 'events_type_length'],
-  'check constraints'
+  'events has exactly the two named CHECK constraints'
 );
 
 select throws_ok(
@@ -67,7 +109,7 @@ select throws_ok(
      values ('00000000-0000-0000-0000-0000000000b1', 'robot', 'check_test') $$,
   '23514',
   null,
-  'actor_role outside (human, agent, system) is rejected'
+  'inserting actor_role outside (human, agent, system) is rejected'
 );
 
 select throws_ok(
@@ -75,35 +117,58 @@ select throws_ok(
      values ('00000000-0000-0000-0000-0000000000b1', 'system', repeat('x', 101)) $$,
   '23514',
   null,
-  'type longer than 100 characters is rejected'
+  'inserting a type longer than 100 characters is rejected'
 );
 
-select set_eq(
-  $$ select indexname::text from pg_indexes
-      where schemaname = 'public' and tablename = 'events'
-        and indexname not like '%_pkey' $$,
-  array['events_project_id_created_at_idx', 'events_node_id_idx'],
-  'the two non-primary-key indexes'
+-- ---------------------------------------------------------------------------
+-- Indexes: the two queries that run are the project timeline and the per-node
+-- history.
+-- ---------------------------------------------------------------------------
+
+select indexes_are(
+  'public', 'events',
+  array['events_pkey', 'events_project_id_created_at_idx', 'events_node_id_idx'],
+  'events has the primary key index and exactly two secondary indexes'
 );
+
+select has_index(
+  'public', 'events', 'events_project_id_created_at_idx',
+  array['project_id', 'created_at'],
+  'project timeline index is on (project_id, created_at)'
+);
+
+select has_index(
+  'public', 'events', 'events_node_id_idx', 'node_id',
+  'per-node history index is on (node_id)'
+);
+
+-- ---------------------------------------------------------------------------
+-- Access starting point: RLS on, zero policies, so nothing is readable until
+-- slice 8c320d4b adds grants and policies.
+-- ---------------------------------------------------------------------------
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.events'::regclass),
-  'row level security is enabled'
+  'row level security is enabled on events'
 );
 
 select is_empty(
   $$ select policyname::text from pg_policies
       where schemaname = 'public' and tablename = 'events' $$,
-  'no policies yet: grants and policies land in slice 8c320d4b'
+  'events has no RLS policies yet: grants and policies land in slice 8c320d4b'
 );
 
+-- ---------------------------------------------------------------------------
+-- Writing a minimal event: only project_id, actor_role and type are required
+-- ---------------------------------------------------------------------------
+
 insert into public.events (project_id, actor_role, type)
-values ('00000000-0000-0000-0000-0000000000b1', 'system', 'schema_test');
+values ('00000000-0000-0000-0000-0000000000b1', 'system', 'minimal_insert_test');
 
 select row_eq(
-  $$ select data, id > 0 from public.events where type = 'schema_test' $$,
+  $$ select data, id > 0 from public.events where type = 'minimal_insert_test' $$,
   row('{}'::jsonb, true),
-  'events defaults an empty data object and an identity id'
+  'a minimal insert gets an empty data object and a positive identity id'
 );
 
 select * from finish();
