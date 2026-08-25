@@ -23,7 +23,7 @@ the isolation node's "no TLS interception at v1" posture.
 
 Builds on two settled picks: the host is a **raw VM** (hosting node `c1b0780b`, done — a
 plain Linux compute instance, cloud-agnostic) and its only outbound path is a **single
-host-local egress proxy** (isolation node `e126cb28`, PR #2) running in the host-root domain
+host-local egress proxy** (isolation node `e126cb28`) running in the host-root domain
 *outside* every per-session sandbox. A VM has exactly one stable machine identity, which
 makes an attached workload-identity role the natural root of trust. Providers (an IAM role, a
 secrets manager, an STS-style token exchange, a model gateway) are named only as **examples**
@@ -325,7 +325,7 @@ security and clarity on each flow):
 - **Claude credential (Max-plan OAuth token or API key) on disk (no secrets manager)** — a
   long-lived secret persisted on the host with no central rotation, revocation, or scoping.
 
-## Cross-node consistency note (isolation node `e126cb28` / PR #2)
+## Cross-node consistency note (isolation node `e126cb28`)
 
 **v1 is now consistent with the isolation doc:** the egress proxy remains a
 **hostname-allowlist tunnel that does not terminate TLS**. Credentials are delivered by a
