@@ -2,6 +2,18 @@
 
 Secrets & environment design: [docs/secrets.md](docs/secrets.md)
 
+## Harness
+
+The harness loops headless Claude Code sessions to pick up and work AgentJira
+tasks. It is being imported from LoopCliHarness a directory at a time; these
+land in later PRs:
+
+- `runner/` — `run-task`, runs one AgentJira node in one fresh headless session.
+- `supervisor/` — `loop`, repeatedly runs the first recommended task via the runner.
+- `terraform/` — AWS infrastructure the harness runs on (root, bootstrap, iam, modules/vm).
+- `docs/loop/` — supervisor and pickup-judgment design docs.
+- `docs/sandboxing/` — hosting, network isolation, credential flow and cost docs.
+
 ## Local rebuild & CI
 
 CI ([`.github/workflows/backend-ci.yml`](.github/workflows/backend-ci.yml))
