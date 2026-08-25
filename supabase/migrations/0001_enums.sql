@@ -1,3 +1,5 @@
+-- Only for gen_random_bytes(), which projects.webhook_secret defaults to.
+-- Kept out of public so PostgREST never exposes it.
 create extension if not exists pgcrypto with schema extensions;
 
 create type public.node_status as enum (
