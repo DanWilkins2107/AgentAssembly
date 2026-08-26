@@ -1,21 +1,17 @@
-import { useState } from "react";
 import { LoginForm } from "./elements/LoginForm/LoginForm";
 import { supabase } from "../../elements/supabase/supabase";
+import { useAuthAction } from "../../elements/useAuthAction";
 
 export function Login() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { loading, error, run } = useAuthAction();
 
-  async function handleSubmit(email: string, password: string) {
-    setError(null);
-    setLoading(true);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setLoading(false);
-    setError(signInError?.message ?? null);
-  }
-
-  return <LoginForm onSubmit={handleSubmit} error={error} loading={loading} />;
+  return (
+    <LoginForm
+      onSubmit={(email, password) =>
+        void run(() => supabase.auth.signInWithPassword({ email, password }))
+      }
+      error={error}
+      loading={loading}
+    />
+  );
 }

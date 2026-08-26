@@ -1,3 +1,4 @@
+import { Button } from "../../../elements/Button";
 import "./SignOutButton.css";
 
 export type SignOutButtonProps = {
@@ -9,14 +10,15 @@ export type SignOutButtonProps = {
 export function SignOutButton({ onClick, loading, error }: SignOutButtonProps) {
   return (
     <div className="sign-out">
-      <button
-        className="sign-out__button"
+      <Button
+        variant="secondary"
         type="button"
         onClick={onClick}
-        disabled={loading}
+        loading={loading}
+        loadingLabel="Signing out…"
       >
-        {loading ? "Signing out…" : "Sign out"}
-      </button>
+        Sign out
+      </Button>
       {error !== null && (
         <p className="sign-out__error" role="alert">
           {error}
