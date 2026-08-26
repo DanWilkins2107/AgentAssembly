@@ -1,0 +1,23 @@
+# systemd service unit (INI-style). Installed to /etc/systemd/system/, managed with
+# systemctl. Syntax reference: `man systemd.unit` / `man systemd.service`.
+[Unit]
+Description=LoopCliHarness supervisor loop (powers off on exit)
+Documentation=file:/opt/loopcliharness/deploy/README.md
+# Runs supervisor/loop.ts; it exits 0 once the board is idle.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/loopcliharness/supervisor
+ExecStart=/usr/bin/env npm start
+# Batch drains the board to completion (can be hours) — never time it out.
+TimeoutStartSec=infinity
+# Every exit — clean or fatal — powers off. The launch template sets
+# instance_initiated_shutdown_behavior=terminate with the root volume deleted on
+# termination, so poweroff tears the box down and journald goes with the disk; there is
+# no inspection window to keep a failed box up for.
+ExecStopPost=/sbin/systemctl poweroff
+
+[Install]
+WantedBy=multi-user.target
