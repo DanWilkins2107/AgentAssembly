@@ -67,9 +67,6 @@ jobs:
   cli:
     name: CLI - typecheck & test coverage
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: cli
     steps:
       - uses: actions/checkout@v4
 
@@ -77,27 +74,24 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: cli/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Typecheck
-        run: npm run typecheck
+        run: npm run typecheck -w agentassembly-cli
 
       - name: Fallow (dead-code, duplication, complexity)
-        run: npm run fallow
+        run: npm run fallow -w agentassembly-cli
 
       - name: Test with coverage
-        run: npm run test:coverage
+        run: npm run test:coverage -w agentassembly-cli
 
   cli-mutation:
     name: CLI - mutation testing
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: cli
     steps:
       - uses: actions/checkout@v4
 
@@ -105,10 +99,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: cli/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Mutation testing
-        run: npm run test:mutation
+        run: npm run test:mutation -w agentassembly-cli
