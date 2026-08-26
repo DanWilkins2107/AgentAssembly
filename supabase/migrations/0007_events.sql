@@ -15,5 +15,5 @@ create table public.events (
 create index events_project_id_created_at_idx on public.events (project_id, created_at);
 create index events_node_id_idx on public.events (node_id);
 
--- TODO 8c320d4b: grants, RLS policies, and append-only (revoke UPDATE/DELETE).
+-- TODO 8c320d4b 2026-09-25: grants, RLS policies, and append-only (revoke UPDATE/DELETE).
 alter table public.events enable row level security;
