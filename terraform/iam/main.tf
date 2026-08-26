@@ -84,6 +84,36 @@ data "aws_iam_policy_document" "state_access" {
   }
 }
 
+# The egress-log bucket is created by the root stack in terraform/egress-log.tf.
+# Rename it there -> rename it here. The read half is the fan-out of Get calls the
+# aws_s3_bucket refresh makes, so plan needs all of them to see the bucket at all.
+data "aws_iam_policy_document" "egress_log_bucket_read" {
+  statement {
+    sid    = "EgressLogBucketRead"
+    effect = "Allow"
+    actions = [
+      "s3:GetAccelerateConfiguration",
+      "s3:GetBucketAcl",
+      "s3:GetBucketCORS",
+      "s3:GetBucketLocation",
+      "s3:GetBucketLogging",
+      "s3:GetBucketNotification",
+      "s3:GetBucketObjectLockConfiguration",
+      "s3:GetBucketOwnershipControls",
+      "s3:GetBucketPolicy",
+      "s3:GetBucketPublicAccessBlock",
+      "s3:GetBucketRequestPayment",
+      "s3:GetBucketTagging",
+      "s3:GetBucketVersioning",
+      "s3:GetBucketWebsite",
+      "s3:GetEncryptionConfiguration",
+      "s3:GetLifecycleConfiguration",
+      "s3:GetReplicationConfiguration",
+    ]
+    resources = ["arn:aws:s3:::${var.name_prefix}-egress-logs"]
+  }
+}
+
 # KMS key ARNs embed a generated key id, so key statements scope on the Project
 # tag (terraform/locals.tf common_tags) instead of a name prefix.
 data "aws_iam_policy_document" "kms_common" {
@@ -127,6 +157,7 @@ data "aws_iam_policy_document" "ci_plan" {
   source_policy_documents = [
     data.aws_iam_policy_document.state_access.json,
     data.aws_iam_policy_document.kms_common.json,
+    data.aws_iam_policy_document.egress_log_bucket_read.json,
   ]
 
   statement {
@@ -141,6 +172,7 @@ data "aws_iam_policy_document" "ci_apply" {
   source_policy_documents = [
     data.aws_iam_policy_document.state_access.json,
     data.aws_iam_policy_document.kms_common.json,
+    data.aws_iam_policy_document.egress_log_bucket_read.json,
   ]
 
   statement {
@@ -268,6 +300,24 @@ data "aws_iam_policy_document" "ci_apply" {
       "secretsmanager:UntagResource",
     ]
     resources = ["arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.name_prefix}-*"]
+  }
+
+  # Bucket-level only: terraform never puts or reads the log objects themselves.
+  statement {
+    sid    = "EgressLogBucketWrite"
+    effect = "Allow"
+    actions = [
+      "s3:CreateBucket",
+      "s3:DeleteBucket",
+      "s3:DeleteBucketPolicy",
+      "s3:PutBucketOwnershipControls",
+      "s3:PutBucketPolicy",
+      "s3:PutBucketPublicAccessBlock",
+      "s3:PutBucketTagging",
+      "s3:PutEncryptionConfiguration",
+      "s3:PutLifecycleConfiguration",
+    ]
+    resources = ["arn:aws:s3:::${var.name_prefix}-egress-logs"]
   }
 
   # kms:TagResource is required by CreateKey to tag the key on creation, and the

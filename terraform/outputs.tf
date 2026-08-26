@@ -21,3 +21,11 @@ output "vm_instance_role_name" {
 output "vm_instance_role_arn" {
   value = module.vm.instance_role_arn
 }
+
+output "egress_log_bucket" {
+  value = aws_s3_bucket.egress_log.bucket
+}
+
+output "egress_log_prefix" {
+  value = local.egress_log_prefix
+}
