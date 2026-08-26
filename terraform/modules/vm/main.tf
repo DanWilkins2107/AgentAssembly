@@ -1,14 +1,21 @@
+# Two layers, deliberately. This group is a port fence only: it cannot filter by
+# hostname, and the destinations below are all CDN-fronted with rotating IPs, so a
+# CIDR allowlist here would be either useless or wrong. The by-name default-deny
+# lives on the host — nftables plus the squid allowlist in user-data.yaml.tftpl —
+# where a session's uid is visible and squid can match the CONNECT host.
 resource "aws_security_group" "vm" {
   name        = "${var.name}-vm"
-  description = "Base VM security group: no ingress, egress limited to SSM, DNS and apt"
+  description = "Base VM security group: no ingress, egress limited to SSM, DNS, apt and the egress proxy"
   vpc_id      = var.vpc_id
 
-  # Open destination: SSM is reached over the NAT gateway at its public regional
-  # endpoints, and AWS publishes no prefix list for them. Narrowing this needs
-  # interface VPC endpoints for ssm/ssmmessages/ec2messages, which is a separate
-  # (billed) change.
+  # Open destination, for two reasons that share a rule: SSM is reached over the NAT
+  # gateway at its public regional endpoints and AWS publishes no prefix list for
+  # them, and this is also the path the egress proxy takes to the hosts it allowlists.
+  # Narrowing the SSM half needs interface VPC endpoints for ssm/ssmmessages/
+  # ec2messages, which is a separate (billed) change; the proxy half cannot be
+  # narrowed here at all.
   egress {
-    description = "SSM endpoints"
+    description = "SSM endpoints and egress proxy"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -99,7 +106,9 @@ resource "aws_launch_template" "vm" {
   vpc_security_group_ids               = [aws_security_group.vm.id]
 
   # Readable from IMDS by anything on the box — never put secrets here.
-  user_data = base64encode(templatefile("${path.module}/user-data.yaml.tftpl", {}))
+  user_data = base64encode(templatefile("${path.module}/user-data.yaml.tftpl", {
+    agentjira_supabase_host = var.agentjira_supabase_host
+  }))
 
   iam_instance_profile {
     arn = aws_iam_instance_profile.vm.arn

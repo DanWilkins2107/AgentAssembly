@@ -6,6 +6,113 @@ packages:
   - ca-certificates
   - curl
   - gnupg
+  - nftables
+
+write_files:
+  - path: /etc/nftables.conf
+    permissions: '0755'
+    content: |
+      #!/usr/sbin/nft -f
+      flush ruleset
+
+      table inet filter {
+        chain output {
+          type filter hook output priority filter; policy drop;
+
+          ct state established,related accept
+
+          # Loopback never leaves the box, and it is how a sandbox reaches squid.
+          oif "lo" accept
+
+          # Host-root trust domain: cloud-init, apt, the SSM agent, the supervisor.
+          # A session is confined to a non-root uid, so this does not widen what a
+          # sandbox can reach.
+          meta skuid 0 accept
+
+          # squid drops to the proxy user once it has bound its port. It is the only
+          # non-root uid allowed off the box, and its hostname allowlist decides where
+          # to. Everything else egresses through it or not at all.
+          meta skuid "proxy" accept
+
+          # Destination is pinned to the VPC resolver by the security group.
+          udp dport 53 accept
+          tcp dport 53 accept
+
+          # DHCP lease renewal, and time sync because a skewed clock breaks every TLS
+          # handshake. Both are link-local. IMDS (169.254.169.254) is deliberately not
+          # here: a sandbox has no business reading the instance role's credentials.
+          udp dport 67-68 accept
+          ip daddr 169.254.169.123 udp dport 123 accept
+        }
+      }
+
+  - path: /etc/squid/proxy-users
+    owner: 'root:proxy'
+    permissions: '0640'
+    content: ''
+
+  - path: /etc/squid/squid.conf
+    permissions: '0644'
+    content: |
+      http_port 127.0.0.1:3128
+      visible_hostname agentassembly-vm
+
+      # Per-session identity. Each sandbox authenticates as its own session id, so
+      # every access.log line attributes to one session. Credentials are minted by
+      # /usr/local/sbin/session-proxy-identity, which owns the file below.
+      auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/proxy-users
+      auth_param basic realm agentassembly
+      auth_param basic children 2
+      auth_param basic credentialsttl 5 minutes
+
+      acl session proxy_auth REQUIRED
+      acl allowlist dstdomain github.com api.github.com .githubusercontent.com api.anthropic.com ${agentjira_supabase_host}
+      acl ssl_ports port 443
+      acl connect_method method CONNECT
+
+      # No TLS interception: CONNECT is matched on the requested hostname and then
+      # tunnelled untouched, so there is no trust store to manage.
+      http_access deny !session
+      http_access deny connect_method !ssl_ports
+      http_access allow session allowlist
+      http_access deny all
+
+      access_log /var/log/squid/access.log squid
+
+  - path: /usr/local/sbin/session-proxy-identity
+    permissions: '0700'
+    content: |
+      #!/bin/sh
+      # Mints a proxy credential for one session and prints its proxy environment on
+      # stdout, ready to be sourced. The bubblewrap session spawner calls this and
+      # exports the result; the proxy audit log attributes lines by the session id.
+      set -eu
+
+      session=$1
+      case "$session" in
+        *[!A-Za-z0-9_-]* | "")
+          echo "session id must match [A-Za-z0-9_-]+" >&2
+          exit 1
+          ;;
+      esac
+
+      users=/etc/squid/proxy-users
+      password=$(openssl rand -hex 16)
+
+      tmp=$(mktemp "$users.XXXXXX")
+      grep -v "^$session:" "$users" >"$tmp" || true
+      printf '%s:%s\n' "$session" "$(openssl passwd -6 "$password")" >>"$tmp"
+      chown root:proxy "$tmp"
+      chmod 0640 "$tmp"
+      # basic_ncsa_auth re-reads the file when its mtime moves, so squid needs no reload.
+      mv "$tmp" "$users"
+
+      # curl and git read the lowercase names, Node reads the uppercase ones.
+      for name in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY; do
+        printf '%s=http://%s:%s@127.0.0.1:3128\n' "$name" "$session" "$password"
+      done
+      printf 'no_proxy=localhost,127.0.0.1\n'
+      printf 'NO_PROXY=localhost,127.0.0.1\n'
 
 runcmd:
   - set -eux
@@ -18,7 +125,10 @@ runcmd:
   - echo "deb [signed-by=/etc/apt/keyrings/nodesource.asc] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
   - echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/githubcli.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
   - DEBIAN_FRONTEND=noninteractive apt-get update
-  - DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs gh
+  # force-confold: squid.conf is on disk from write_files before the package that
+  # owns it is installed, and dpkg would otherwise decide for itself whether to keep it.
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold nodejs gh squid
+  - systemctl enable --now squid
   - npm i -g @anthropic-ai/claude-code
   - git clone --depth 1 https://github.com/DanWilkins2107/AgentAssembly.git /opt/agentassembly
   # ci not install: the committed lockfiles decide the tree.
@@ -30,6 +140,9 @@ runcmd:
   - npm --prefix /opt/agentjira/cli ci
   - npm --prefix /opt/agentjira/cli run build
   - npm i -g /opt/agentjira/cli
+  # After the apt and npm work above, which runs as root and needs the open egress
+  # the security group still allows root.
+  - systemctl enable --now nftables
   - install -m 0644 /opt/agentassembly/deploy/supervisor-loop.service /etc/systemd/system/supervisor-loop.service
   - systemctl daemon-reload
   - systemctl enable supervisor-loop.service
