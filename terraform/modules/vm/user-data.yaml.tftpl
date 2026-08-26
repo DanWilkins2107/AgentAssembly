@@ -13,6 +13,10 @@ write_files:
     permissions: '0755'
     content: |
       #!/usr/sbin/nft -f
+      # Raw nftables, not ufw: the whole point of this ruleset is the skuid match
+      # below, and ufw's rule grammar has no uid match - under ufw that rule would
+      # be hand-written iptables in before.rules, i.e. ufw managing everything
+      # except the one line that matters. flush ruleset also drops ufw's tables.
       flush ruleset
 
       # Reading, for the two things this file leans on hardest:
