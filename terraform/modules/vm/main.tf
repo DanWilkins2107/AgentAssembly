@@ -3,6 +3,10 @@ resource "aws_security_group" "vm" {
   description = "Base VM security group: no ingress, egress limited to SSM, DNS and apt"
   vpc_id      = var.vpc_id
 
+  # Open destination: SSM is reached over the NAT gateway at its public regional
+  # endpoints, and AWS publishes no prefix list for them. Narrowing this needs
+  # interface VPC endpoints for ssm/ssmmessages/ec2messages, which is a separate
+  # (billed) change.
   egress {
     description = "SSM endpoints"
     from_port   = 443
@@ -11,6 +15,8 @@ resource "aws_security_group" "vm" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Open destination: archive.ubuntu.com and security.ubuntu.com resolve to a
+  # rotating CDN with no published address range.
   egress {
     description = "apt over http"
     from_port   = 80
@@ -27,8 +33,8 @@ resource "aws_security_group" "vm" {
     cidr_blocks = [var.dns_resolver_cidr]
   }
 
-  # RFC 7766: a resolver retries over TCP when a UDP answer comes back truncated.
-  # Without this rule that retry is dropped and large answers fail to resolve.
+  # A resolver retries over TCP when a UDP answer comes back truncated. Without
+  # this rule that retry is dropped and large answers fail to resolve.
   egress {
     description = "DNS to VPC resolver (TCP)"
     from_port   = 53
