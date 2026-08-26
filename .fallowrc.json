@@ -1,5 +1,6 @@
 {
   "$schema": "./node_modules/fallow/schema.json",
+  "entry": ["**/stryker.config.mjs"],
   "health": {
     "maxCyclomatic": 3,
     "maxCognitive": 3,

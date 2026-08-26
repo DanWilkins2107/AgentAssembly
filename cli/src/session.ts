@@ -55,7 +55,11 @@ function parseSession(contents: string, path: string): SessionBundle {
 // Write atomically and with tight perms: create a 0600 temp file in the same
 // dir, flush it, then rename it over the target. No partial or loosely
 // permissioned file is ever visible at the target path.
-async function writeFileAtomic(dir: string, path: string, data: string): Promise<void> {
+async function writeFileAtomic(
+  dir: string,
+  path: string,
+  data: string,
+): Promise<void> {
   await mkdir(dir, { recursive: true, mode: DIR_MODE });
   const tempPath = join(dir, `.session.${randomBytes(8).toString("hex")}.tmp`);
   const handle = await open(tempPath, "wx", FILE_MODE);
@@ -73,7 +77,9 @@ async function writeFileAtomic(dir: string, path: string, data: string): Promise
   }
 }
 
-export async function getSession(dir: string = sessionDir()): Promise<SessionBundle | null> {
+export async function getSession(
+  dir: string = sessionDir(),
+): Promise<SessionBundle | null> {
   const path = sessionPath(dir);
   let contents: string;
   try {
@@ -91,7 +97,9 @@ export async function setSession(
 ): Promise<void> {
   const validated = sessionSchema.safeParse(session);
   if (!validated.success) {
-    throw new SessionError("session must have a non-empty access_token and refresh_token");
+    throw new SessionError(
+      "session must have a non-empty access_token and refresh_token",
+    );
   }
   const path = sessionPath(dir);
   try {

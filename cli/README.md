@@ -14,7 +14,11 @@ touch a project it was not launched for.
 ## Session tokens
 
 ```ts
-import { getSession, setSession, clearSession } from "agentassembly-cli/session";
+import {
+  getSession,
+  setSession,
+  clearSession,
+} from "agentassembly-cli/session";
 ```
 
 ## Authenticated client
