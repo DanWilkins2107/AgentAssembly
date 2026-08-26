@@ -22,7 +22,7 @@ select is(
   (select array_agg(enumlabel::text order by enumsortorder)
      from pg_enum where enumtypid = 'public.edge_type'::regtype),
   array[
-    'subtask', 'firm_block', 'firm_block_plan', 'reassess_after', 'relates_to'
+    'subtask', 'firm_block', 'firm_block_plan', 'relates_to'
   ],
   'edge_type labels, in order'
 );

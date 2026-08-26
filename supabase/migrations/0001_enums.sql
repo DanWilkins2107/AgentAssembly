@@ -24,7 +24,6 @@ create type public.edge_type as enum (
   'subtask',
   'firm_block',
   'firm_block_plan',
-  'reassess_after',
   'relates_to'
 );
 
