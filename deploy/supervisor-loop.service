@@ -1,8 +1,5 @@
-# systemd service unit (INI-style). Installed to /etc/systemd/system/, managed with
-# systemctl. Syntax reference: `man systemd.unit` / `man systemd.service`.
 [Unit]
 Description=AgentAssembly supervisor loop (powers off on exit)
-# Runs supervisor/loop.ts; it exits 0 once the board is idle.
 After=network-online.target
 Wants=network-online.target
 
@@ -10,13 +7,11 @@ Wants=network-online.target
 Type=oneshot
 WorkingDirectory=/opt/agentassembly/supervisor
 ExecStart=/usr/bin/env npm start
-# Batch drains the board to completion (can be hours) — never time it out.
-TimeoutStartSec=infinity
-# Every exit — clean or fatal — powers off. The launch template sets
-# instance_initiated_shutdown_behavior=terminate with the root volume deleted on
-# termination, so poweroff tears the box down and journald goes with the disk; there is
-# no inspection window to keep a failed box up for.
-ExecStopPost=/sbin/systemctl poweroff
+# A drain runs for hours; 1d is a stale-run backstop, not an expected duration.
+TimeoutStartSec=1d
+# The launch template terminates on instance-initiated shutdown and deletes the root
+# volume, so this destroys the box — there is no inspection window for a failed run.
+ExecStopPost=/usr/bin/systemctl poweroff
 
 [Install]
 WantedBy=multi-user.target
