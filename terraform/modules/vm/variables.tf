@@ -19,3 +19,11 @@ variable "root_volume_size" {
   type    = number
   default = 30
 }
+
+variable "harness_ref" {
+  type = string
+}
+
+variable "agentjira_cli_ref" {
+  type = string
+}

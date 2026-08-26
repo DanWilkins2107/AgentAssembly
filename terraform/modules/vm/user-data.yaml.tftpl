@@ -20,12 +20,22 @@ runcmd:
   - DEBIAN_FRONTEND=noninteractive apt-get update
   - DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs gh
   - npm i -g @anthropic-ai/claude-code
-  - git clone --depth 1 https://github.com/DanWilkins2107/AgentAssembly.git /opt/agentassembly
+  # init+fetch rather than clone: --depth 1 clone cannot take a SHA, fetch can.
+  # A bad ref powers the instance off rather than idling it to the reaper, and
+  # `systemctl poweroff` not `poweroff` — /usr/sbin/poweroff is systemd-sysv,
+  # /usr/bin/systemctl is systemd itself.
+  - git init /opt/agentassembly
+  - git -C /opt/agentassembly fetch --depth 1 https://github.com/DanWilkins2107/AgentAssembly.git ${harness_ref} || { systemctl poweroff; exit 1; }
+  - git -C /opt/agentassembly checkout FETCH_HEAD
+  - git -C /opt/agentassembly rev-parse HEAD
   # ci not install: the committed lockfiles decide the tree.
   # Dev dependencies are runtime here — both packages start via tsx.
   - npm --prefix /opt/agentassembly/runner ci
   - npm --prefix /opt/agentassembly/supervisor ci
-  - git clone --depth 1 https://github.com/DanWilkins2107/AgentJira.git /opt/agentjira
+  - git init /opt/agentjira
+  - git -C /opt/agentjira fetch --depth 1 https://github.com/DanWilkins2107/AgentJira.git ${agentjira_cli_ref} || { systemctl poweroff; exit 1; }
+  - git -C /opt/agentjira checkout FETCH_HEAD
+  - git -C /opt/agentjira rev-parse HEAD
   # dist/ is gitignored and tsc is a devDependency, so the CLI compiles here.
   - npm --prefix /opt/agentjira/cli ci
   - npm --prefix /opt/agentjira/cli run build
