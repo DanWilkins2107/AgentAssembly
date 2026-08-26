@@ -15,7 +15,7 @@ describe("Button", () => {
   it("matches snapshot while loading", () => {
     const { container } = render(
       <Button
-        variant="quiet"
+        variant="secondary"
         type="button"
         loading
         loadingLabel="Signing out…"

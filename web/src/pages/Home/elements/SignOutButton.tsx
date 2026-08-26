@@ -11,7 +11,7 @@ export function SignOutButton({ onClick, loading, error }: SignOutButtonProps) {
   return (
     <div className="sign-out">
       <Button
-        variant="quiet"
+        variant="secondary"
         type="button"
         onClick={onClick}
         loading={loading}

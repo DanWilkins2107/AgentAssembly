@@ -6,7 +6,7 @@ exports[`SignOutButton > matches snapshot 1`] = `
     class="sign-out"
   >
     <button
-      class="button button--quiet"
+      class="button button--secondary"
       type="button"
     >
       Sign out

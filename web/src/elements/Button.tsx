@@ -3,7 +3,7 @@ import "./Button.css";
 
 const VARIANT_CLASS = {
   primary: "button button--primary",
-  quiet: "button button--quiet",
+  secondary: "button button--secondary",
 };
 
 export type ButtonProps = {

@@ -14,7 +14,7 @@ exports[`Button > matches snapshot 1`] = `
 exports[`Button > matches snapshot while loading 1`] = `
 <div>
   <button
-    class="button button--quiet"
+    class="button button--secondary"
     disabled=""
     type="button"
   >

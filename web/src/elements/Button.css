@@ -37,7 +37,7 @@
   box-shadow: var(--shadow-accent);
 }
 
-.button--quiet {
+.button--secondary {
   padding: 0.5rem 0.95rem;
   border: 1px solid var(--line);
   background: transparent;
@@ -50,12 +50,12 @@
   box-shadow: var(--shadow-accent-lift);
 }
 
-.button--quiet:hover:not(:disabled) {
+.button--secondary:hover:not(:disabled) {
   border-color: var(--danger);
   color: var(--danger);
 }
 
-.button--quiet:disabled {
+.button--secondary:disabled {
   opacity: 0.6;
 }
 
