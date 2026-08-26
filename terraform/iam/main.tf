@@ -84,8 +84,50 @@ data "aws_iam_policy_document" "state_access" {
   }
 }
 
+# KMS key ARNs embed a generated key id, so key statements scope on the Project
+# tag (terraform/locals.tf common_tags) instead of a name prefix.
+data "aws_iam_policy_document" "kms_common" {
+  statement {
+    sid    = "KmsReadTagged"
+    effect = "Allow"
+    actions = [
+      "kms:DescribeKey",
+      "kms:GetKeyPolicy",
+      "kms:GetKeyRotationStatus",
+      "kms:ListResourceTags",
+    ]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Project"
+      values   = [var.name_prefix]
+    }
+  }
+
+  statement {
+    sid       = "KmsListAliases"
+    effect    = "Allow"
+    actions   = ["kms:ListAliases"]
+    resources = ["*"]
+  }
+
+  # Without this, kms:PutKeyPolicy lets ci-apply grant itself decrypt on the CMK.
+  # A deny here cannot be overridden by a key policy. Encrypt/GenerateDataKey* are
+  # deliberately not denied: Secrets Manager validates the CMK at CreateSecret.
+  statement {
+    sid       = "DenyKmsDataPlane"
+    effect    = "Deny"
+    actions   = ["kms:Decrypt", "kms:ReEncrypt*"]
+    resources = ["*"]
+  }
+}
+
 data "aws_iam_policy_document" "ci_plan" {
-  source_policy_documents = [data.aws_iam_policy_document.state_access.json]
+  source_policy_documents = [
+    data.aws_iam_policy_document.state_access.json,
+    data.aws_iam_policy_document.kms_common.json,
+  ]
 
   statement {
     sid       = "Ec2Read"
@@ -96,7 +138,10 @@ data "aws_iam_policy_document" "ci_plan" {
 }
 
 data "aws_iam_policy_document" "ci_apply" {
-  source_policy_documents = [data.aws_iam_policy_document.state_access.json]
+  source_policy_documents = [
+    data.aws_iam_policy_document.state_access.json,
+    data.aws_iam_policy_document.kms_common.json,
+  ]
 
   statement {
     sid    = "IamRole"
@@ -223,6 +268,52 @@ data "aws_iam_policy_document" "ci_apply" {
       "secretsmanager:UntagResource",
     ]
     resources = ["arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.name_prefix}-*"]
+  }
+
+  # kms:TagResource is required by CreateKey to tag the key on creation, and the
+  # key does not exist yet - so it is gated on the requested tag, not a resource tag.
+  statement {
+    sid       = "KmsCreateKey"
+    effect    = "Allow"
+    actions   = ["kms:CreateKey", "kms:TagResource"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = [var.name_prefix]
+    }
+  }
+
+  statement {
+    sid    = "KmsWriteTagged"
+    effect = "Allow"
+    actions = [
+      "kms:TagResource",
+      "kms:UntagResource",
+      "kms:PutKeyPolicy",
+      "kms:EnableKeyRotation",
+      "kms:ScheduleKeyDeletion",
+      "kms:CancelKeyDeletion",
+      "kms:CreateAlias",
+      "kms:DeleteAlias",
+    ]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Project"
+      values   = [var.name_prefix]
+    }
+  }
+
+  # CreateAlias/DeleteAlias authorize against both the alias and its target key;
+  # KmsWriteTagged covers the key half.
+  statement {
+    sid       = "KmsAlias"
+    effect    = "Allow"
+    actions   = ["kms:CreateAlias", "kms:DeleteAlias"]
+    resources = ["arn:aws:kms:${var.region}:${var.account_id}:alias/${var.name_prefix}-*"]
   }
 
   statement {
