@@ -46,7 +46,9 @@ describe("session fs failures", () => {
   it("names the error and keeps the underlying fs error as its cause", async () => {
     const cause = nonMissing();
     vi.mocked(readFile).mockRejectedValue(cause);
-    const error = (await getSession("/store").catch((thrown: unknown) => thrown)) as SessionError;
+    const error = (await getSession("/store").catch(
+      (thrown: unknown) => thrown,
+    )) as SessionError;
     expect(error.name).toBe("SessionError");
     expect(error.cause).toBe(cause);
   });
@@ -72,7 +74,10 @@ describe("session fs failures", () => {
   it("reads from the default store when no dir is given", async () => {
     vi.mocked(readFile).mockResolvedValue(JSON.stringify(session));
     await expect(getSession()).resolves.toEqual(session);
-    expect(readFile).toHaveBeenCalledWith(join(sessionDir(), "session.json"), "utf8");
+    expect(readFile).toHaveBeenCalledWith(
+      join(sessionDir(), "session.json"),
+      "utf8",
+    );
   });
 
   it("writes to the default store when no dir is given", async () => {
@@ -81,7 +86,10 @@ describe("session fs failures", () => {
     vi.mocked(open).mockResolvedValue(handle as never);
     vi.mocked(rename).mockResolvedValue(undefined);
     await expect(setSession(session)).resolves.toBeUndefined();
-    expect(handle.writeFile).toHaveBeenCalledWith(JSON.stringify(session), "utf8");
+    expect(handle.writeFile).toHaveBeenCalledWith(
+      JSON.stringify(session),
+      "utf8",
+    );
     expect(handle.close).toHaveBeenCalled();
   });
 

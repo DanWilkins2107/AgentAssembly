@@ -23,6 +23,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:mutation": "stryker run",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
     "fallow": "fallow"
   },
   "dependencies": {
