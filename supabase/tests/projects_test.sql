@@ -36,33 +36,23 @@ select col_is_null('public', 'projects', 'archived_at', 'archived_at is nullable
 
 -- Defaults
 
--- pg_get_expr deparses against the live search_path, so a function living in a
--- schema that happens to be on it prints unqualified. Pinning search_path to
--- pg_catalog makes the deparsed text deterministic and the assertions exact.
-create function pg_temp.column_default(target_column text) returns text
-language sql stable set search_path = pg_catalog as $fn$
-  select pg_get_expr(default_expr.adbin, default_expr.adrelid)
-    from pg_attrdef default_expr
-    join pg_attribute column_meta
-      on column_meta.attrelid = default_expr.adrelid
-     and column_meta.attnum = default_expr.adnum
-   where default_expr.adrelid = 'public.projects'::regclass
-     and column_meta.attname = target_column;
-$fn$;
+-- A stored default is deparsed against the live search_path, so with
+-- `extensions` on it webhook_secret's default comes back unqualified. Pin the
+-- path first and the text is deterministic, so these compare exactly -- the
+-- extensions. qualification included.
+set local search_path = pg_catalog, public;
 
-select is(
-  pg_temp.column_default('id'),
-  'gen_random_uuid()',
-  'id defaults to pg_catalog.gen_random_uuid()'
-);
+select col_default_is('public', 'projects', 'id', 'gen_random_uuid()',
+  'id defaults to pg_catalog.gen_random_uuid()');
 
-select is(pg_temp.column_default('created_at'), 'now()', 'created_at defaults to now()');
+select col_default_is('public', 'projects', 'created_at', 'now()',
+  'created_at defaults to now()');
 
-select is(
-  pg_temp.column_default('webhook_secret'),
+select col_default_is('public', 'projects', 'webhook_secret',
   'encode(extensions.gen_random_bytes(32), ''hex''::text)',
-  'webhook_secret defaults to 32 pgcrypto random bytes, hex-encoded'
-);
+  'webhook_secret defaults to 32 pgcrypto random bytes, hex-encoded');
+
+reset search_path;
 
 -- Primary key and foreign keys
 
