@@ -16,8 +16,6 @@ secrets/*
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
-# Placeholder-only values so the CI plan gate can run. Committed deliberately;
-# the blanket rule above still holds for every other tfvars file.
 !terraform/ci.tfvars
 .terraform.lock.hcl
 

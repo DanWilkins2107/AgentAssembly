@@ -1,19 +1,11 @@
-# Two layers, deliberately. This group is a port fence only: it cannot filter by
-# hostname, and the destinations below are all CDN-fronted with rotating IPs, so a
-# CIDR allowlist here would be either useless or wrong. The by-name default-deny
-# lives on the host — nftables plus the squid allowlist in user-data.yaml.tftpl —
-# where a session's uid is visible and squid can match the CONNECT host.
 resource "aws_security_group" "vm" {
   name        = "${var.name}-vm"
   description = "Base VM security group: no ingress, egress limited to SSM, DNS, apt and the egress proxy"
   vpc_id      = var.vpc_id
 
-  # Open destination, for two reasons that share a rule: SSM is reached over the NAT
-  # gateway at its public regional endpoints and AWS publishes no prefix list for
-  # them, and this is also the path the egress proxy takes to the hosts it allowlists.
-  # Narrowing the SSM half needs interface VPC endpoints for ssm/ssmmessages/
-  # ec2messages, which is a separate (billed) change; the proxy half cannot be
-  # narrowed here at all.
+  # Open destination: SSM is reached over the NAT gateway at its public regional
+  # endpoints, and AWS publishes no prefix list for them. The egress proxy shares this
+  # rule, and its allowlist is by hostname, so it cannot be narrowed here either.
   egress {
     description = "SSM endpoints and egress proxy"
     from_port   = 443

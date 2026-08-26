@@ -10,7 +10,6 @@ variable "dns_resolver_cidr" {
   type = string
 }
 
-# Not committed: supplied at apply time so this public repo carries no endpoint.
 variable "agentjira_supabase_host" {
   type        = string
   description = "Hostname of the AgentJira Supabase project. The egress proxy allowlists it alongside GitHub and the Anthropic API."
