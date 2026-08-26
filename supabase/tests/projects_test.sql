@@ -36,8 +36,11 @@ select col_is_null('public', 'projects', 'archived_at', 'archived_at is nullable
 
 -- Defaults
 
+-- pg_get_expr deparses against the live search_path, so a function living in a
+-- schema that happens to be on it prints unqualified. Pinning search_path to
+-- pg_catalog makes the deparsed text deterministic and the assertions exact.
 create function pg_temp.column_default(target_column text) returns text
-language sql stable as $fn$
+language sql stable set search_path = pg_catalog as $fn$
   select pg_get_expr(default_expr.adbin, default_expr.adrelid)
     from pg_attrdef default_expr
     join pg_attribute column_meta
@@ -47,19 +50,17 @@ language sql stable as $fn$
      and column_meta.attname = target_column;
 $fn$;
 
-select matches(
+select is(
   pg_temp.column_default('id'),
-  'gen_random_uuid\(\)',
-  'id defaults to gen_random_uuid()'
+  'gen_random_uuid()',
+  'id defaults to pg_catalog.gen_random_uuid()'
 );
 
 select is(pg_temp.column_default('created_at'), 'now()', 'created_at defaults to now()');
 
--- Unqualified: pg_get_expr drops the `extensions.` prefix whenever that schema
--- is on the search_path. enums_test.sql pins pgcrypto's install schema.
-select matches(
+select is(
   pg_temp.column_default('webhook_secret'),
-  '^encode\((extensions\.)?gen_random_bytes\(32\), ''hex''',
+  'encode(extensions.gen_random_bytes(32), ''hex''::text)',
   'webhook_secret defaults to 32 pgcrypto random bytes, hex-encoded'
 );
 
