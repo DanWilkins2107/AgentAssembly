@@ -21,11 +21,14 @@ runcmd:
   - DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs gh
   - npm i -g @anthropic-ai/claude-code
   - git clone --depth 1 https://github.com/DanWilkins2107/AgentAssembly.git /opt/agentassembly
+  # Both clones track main, so this log line is the only record of which revision a burst ran.
+  - git -C /opt/agentassembly rev-parse HEAD
   # ci not install: the committed lockfiles decide the tree.
   # Dev dependencies are runtime here — both packages start via tsx.
   - npm --prefix /opt/agentassembly/runner ci
   - npm --prefix /opt/agentassembly/supervisor ci
   - git clone --depth 1 https://github.com/DanWilkins2107/AgentJira.git /opt/agentjira
+  - git -C /opt/agentjira rev-parse HEAD
   # dist/ is gitignored and tsc is a devDependency, so the CLI compiles here.
   - npm --prefix /opt/agentjira/cli ci
   - npm --prefix /opt/agentjira/cli run build
