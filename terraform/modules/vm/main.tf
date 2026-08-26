@@ -1,14 +1,13 @@
 resource "aws_security_group" "vm" {
   name        = "${var.name}-vm"
-  description = "Base VM security group: no ingress, egress limited to SSM, DNS and apt"
+  description = "Base VM security group: no ingress, egress limited to SSM, DNS, apt and the egress proxy"
   vpc_id      = var.vpc_id
 
   # Open destination: SSM is reached over the NAT gateway at its public regional
-  # endpoints, and AWS publishes no prefix list for them. Narrowing this needs
-  # interface VPC endpoints for ssm/ssmmessages/ec2messages, which is a separate
-  # (billed) change.
+  # endpoints, and AWS publishes no prefix list for them. The egress proxy shares this
+  # rule, and its allowlist is by hostname, so it cannot be narrowed here either.
   egress {
-    description = "SSM endpoints"
+    description = "SSM endpoints and egress proxy"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -99,7 +98,9 @@ resource "aws_launch_template" "vm" {
   vpc_security_group_ids               = [aws_security_group.vm.id]
 
   # Readable from IMDS by anything on the box — never put secrets here.
-  user_data = base64encode(templatefile("${path.module}/user-data.yaml.tftpl", {}))
+  user_data = base64encode(templatefile("${path.module}/user-data.yaml.tftpl", {
+    agentjira_supabase_host = var.agentjira_supabase_host
+  }))
 
   iam_instance_profile {
     arn = aws_iam_instance_profile.vm.arn

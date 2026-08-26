@@ -4,8 +4,9 @@ module "network" {
 }
 
 module "vm" {
-  source            = "./modules/vm"
-  name              = local.name_prefix
-  vpc_id            = module.network.vpc_id
-  dns_resolver_cidr = module.network.dns_resolver_cidr
+  source                  = "./modules/vm"
+  name                    = local.name_prefix
+  vpc_id                  = module.network.vpc_id
+  dns_resolver_cidr       = module.network.dns_resolver_cidr
+  agentjira_supabase_host = var.agentjira_supabase_host
 }
