@@ -5,8 +5,7 @@ create table public.events (
   actor_id uuid,
   actor_role text not null
     constraint events_actor_role_allowed check (actor_role in ('human', 'agent', 'system')),
-  -- No value constraint: the audit vocabulary is open-ended and grows with the
-  -- app, so `type` is capped for length only.
+  -- No value constraint: the audit vocabulary is open-ended and grows with the app.
   type text not null constraint events_type_length check (char_length(type) <= 100),
   data jsonb not null default '{}',
   created_at timestamptz not null default now()
