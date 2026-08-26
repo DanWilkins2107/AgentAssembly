@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap;
-select plan(41);
+select plan(42);
 
 -- Columns
 
@@ -36,23 +36,31 @@ select col_is_null('public', 'projects', 'archived_at', 'archived_at is nullable
 
 -- Defaults
 
--- A stored default is deparsed against the live search_path, so with
--- `extensions` on it webhook_secret's default comes back unqualified. Pin the
--- path first and the text is deterministic, so these compare exactly -- the
--- extensions. qualification included.
-set local search_path = pg_catalog, public;
-
 select col_default_is('public', 'projects', 'id', 'gen_random_uuid()',
-  'id defaults to pg_catalog.gen_random_uuid()');
+  'id defaults to gen_random_uuid()');
 
 select col_default_is('public', 'projects', 'created_at', 'now()',
   'created_at defaults to now()');
 
 select col_default_is('public', 'projects', 'webhook_secret',
-  'encode(extensions.gen_random_bytes(32), ''hex''::text)',
-  'webhook_secret defaults to 32 pgcrypto random bytes, hex-encoded');
+  'encode(gen_random_bytes(32), ''hex''::text)',
+  'webhook_secret defaults to 32 random bytes, hex-encoded');
 
-reset search_path;
+-- The text above cannot say which gen_random_bytes: pg_get_expr drops the
+-- schema prefix whenever extensions is on the search_path, and it always is
+-- here. The recorded dependency can say -- built-in functions are pinned and
+-- never recorded, so pgcrypto's is the only one a projects default pulls in.
+select set_eq(
+  $$ select p.pronamespace::regnamespace::text || '.' || p.proname
+       from pg_attrdef d
+       join pg_depend dep
+         on dep.classid = 'pg_attrdef'::regclass and dep.objid = d.oid
+        and dep.refclassid = 'pg_proc'::regclass
+       join pg_proc p on p.oid = dep.refobjid
+      where d.adrelid = 'public.projects'::regclass $$,
+  array['extensions.gen_random_bytes'],
+  'gen_random_bytes resolves to pgcrypto''s, in schema extensions'
+);
 
 -- Primary key and foreign keys
 
