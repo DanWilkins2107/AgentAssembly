@@ -1,6 +1,3 @@
--- Root of the ownership hierarchy: members, nodes, edges, messages all hang off
--- projects.id. Foreign keys carry no ON DELETE, so nothing cascades anywhere --
--- a project is archived (archived_at), never deleted.
 create table public.projects (
   id uuid primary key default gen_random_uuid(),
   name text not null
@@ -9,8 +6,8 @@ create table public.projects (
     constraint projects_repo_owner_length check (char_length(repo_owner) <= 200),
   repo_name text
     constraint projects_repo_name_length check (char_length(repo_name) <= 200),
-  -- A repo link is a pair. Deliberately not unique: two projects may track the
-  -- same GitHub repo, and webhook routing keys off the per-project secret.
+  -- Deliberately not unique: two projects may track the same GitHub repo, and
+  -- webhook routing keys off the per-project secret.
   constraint projects_repo_pair check (num_nonnulls(repo_owner, repo_name) <> 1),
   webhook_secret text not null default encode(extensions.gen_random_bytes(32), 'hex'),
   created_by uuid not null references auth.users (id),
