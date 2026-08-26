@@ -1,7 +1,7 @@
 import type { FormEvent } from "react";
+import { Button } from "../../../../elements/Button";
 import { Field } from "./elements/Field";
 import { FormError } from "./elements/FormError";
-import { SubmitButton } from "./elements/SubmitButton";
 import { Subtitle } from "./elements/Subtitle";
 import { Title } from "./elements/Title";
 import "./LoginForm.css";
@@ -35,9 +35,14 @@ export function LoginForm({ onSubmit, error, loading }: LoginFormProps) {
           autoComplete="current-password"
         />
         <FormError message={error} />
-        <SubmitButton loading={loading} loadingLabel="Signing in…">
+        <Button
+          variant="primary"
+          type="submit"
+          loading={loading}
+          loadingLabel="Signing in…"
+        >
           Sign in
-        </SubmitButton>
+        </Button>
       </div>
     </form>
   );

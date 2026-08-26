@@ -63,7 +63,7 @@ exports[`LoginForm > matches snapshot 1`] = `
         />
       </label>
       <button
-        class="submit-button"
+        class="button button--primary"
         type="submit"
       >
         Sign in
