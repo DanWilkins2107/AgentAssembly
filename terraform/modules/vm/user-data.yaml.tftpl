@@ -60,7 +60,10 @@ write_files:
       http_access allow session allowlist
       http_access deny all
 
-      access_log /var/log/squid/access.log squid
+      # host:port only: a plaintext request to an allowlisted host would otherwise
+      # write path and query (tokens, private doc ids, search terms) into the log.
+      logformat audit %ts.%03tu %ul %rm %Ss/%03>Hs %<st %>rd:%>rP
+      access_log /var/log/squid/access.log audit
 
   - path: /usr/local/sbin/session-proxy-identity
     permissions: '0700'
@@ -105,6 +108,12 @@ runcmd:
   - DEBIAN_FRONTEND=noninteractive apt-get update
   # force-confold: squid.conf is already on disk from write_files, so dpkg must not replace it.
   - DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold nodejs gh squid
+  # The squid package creates the log dir; restate it so the mode is ours, not the
+  # package's. proxy-owned, not root-owned: squid drops privileges and reopens the
+  # log on rotate. 0750 keeps every uid outside group proxy out; root still reads it
+  # for the pre-poweroff shipper.
+  # TODO eae99053 2026-09-25: log only unreadable by the session once the boot run is non-root
+  - install -d -o proxy -g proxy -m 0750 /var/log/squid
   - systemctl enable --now squid
   - npm i -g @anthropic-ai/claude-code
   - git clone --depth 1 https://github.com/DanWilkins2107/AgentAssembly.git /opt/agentassembly
