@@ -15,6 +15,9 @@ write_files:
       #!/usr/sbin/nft -f
       flush ruleset
 
+      # Reading, for the two things this file leans on hardest:
+      # hooks and priorities - https://wiki.nftables.org/wiki-nftables/index.php/Netfilter_hooks
+      # the skuid match - https://wiki.nftables.org/wiki-nftables/index.php/Matching_packet_metainformation
       table inet filter {
         chain output {
           type filter hook output priority filter; policy drop;
@@ -54,6 +57,10 @@ write_files:
   - path: /etc/squid/squid.conf
     permissions: '0644'
     content: |
+      # Reading, for the three things this file leans on hardest:
+      # acl types, incl. dstdomain's leading-dot subdomain match - https://wiki.squid-cache.org/SquidFaq/SquidAcl
+      # http_access evaluation order - http://www.squid-cache.org/Doc/config/http_access/
+      # basic_ncsa_auth - https://wiki.squid-cache.org/ConfigExamples/Authenticate/Ncsa
       http_port 127.0.0.1:3128
       visible_hostname agentassembly-vm
 
