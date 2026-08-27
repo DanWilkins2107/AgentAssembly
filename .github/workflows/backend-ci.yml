@@ -31,8 +31,14 @@ jobs:
       - name: Run pgTAP database tests
         run: supabase test db
 
-      - name: Install auth test deps
+      - name: Install test deps
         run: npm ci
+
+      - name: Run DB tests
+        run: |
+          eval "$(supabase status -o env)"
+          export DB_URL API_URL ANON_KEY SERVICE_ROLE_KEY
+          npm test -w agentassembly-db-tests
 
       - name: Run auth policy tests
         run: |

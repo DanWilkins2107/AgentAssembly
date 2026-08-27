@@ -2,7 +2,7 @@
   "name": "agentassembly",
   "version": "0.0.0",
   "private": true,
-  "workspaces": ["cli", "web", "supabase/tests/auth"],
+  "workspaces": ["cli", "web", "supabase/tests/auth", "supabase/tests/db"],
   "engines": {
     "node": ">=20"
   },
