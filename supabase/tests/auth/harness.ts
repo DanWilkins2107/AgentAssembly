@@ -4,11 +4,11 @@ import { env } from "./env.ts";
 const noPersist = { auth: { autoRefreshToken: false, persistSession: false } };
 
 export function anonClient(): SupabaseClient {
-  return createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, noPersist);
+  return createClient(env.url, env.anonKey, noPersist);
 }
 
 export function serviceRoleClient(): SupabaseClient {
-  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, noPersist);
+  return createClient(env.url, env.serviceRoleKey, noPersist);
 }
 
 export async function provisionUser(

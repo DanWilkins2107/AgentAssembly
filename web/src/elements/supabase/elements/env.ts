@@ -1,10 +1,9 @@
-import { z } from "zod";
+import {
+  supabaseEnvSchema,
+  type SupabaseEnv,
+} from "../../../../../supabase-env/schema";
 
-const envSchema = z.object({
-  VITE_SUPABASE_URL: z.string().url(),
-  VITE_SUPABASE_ANON_KEY: z.string().min(1),
+export const env: SupabaseEnv = supabaseEnvSchema.parse({
+  url: import.meta.env.VITE_SUPABASE_URL,
+  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
 });
-
-export type Env = z.infer<typeof envSchema>;
-
-export const env: Env = envSchema.parse(import.meta.env);
