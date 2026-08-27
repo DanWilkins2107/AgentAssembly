@@ -6,7 +6,8 @@ import { expect, it } from "vitest";
 
 const TODO = /TODO.*/g;
 const SHAPE = /^TODO [0-9a-fA-F]{8} (\d{4}-\d{2}-\d{2}): \S/;
-const MALFORMED = 'does not match "TODO <8-hex node> <YYYY-MM-DD>: description"';
+const MALFORMED =
+  'does not match "TODO <8-hex node> <YYYY-MM-DD>: description"';
 
 const LOCKFILE = /(^|\/)package-lock\.json$/;
 const MAX_TODO_DAYS = 30;

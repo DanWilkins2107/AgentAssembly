@@ -1,0 +1,90 @@
+.button {
+  border-radius: 0.7rem;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 220ms var(--spring),
+    box-shadow 200ms ease;
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-0.1rem);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(0.06rem) scale(0.99);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.button:disabled {
+  cursor: progress;
+}
+
+.button--primary {
+  padding: 0.8rem 1rem;
+  border: none;
+  background: var(--accent);
+  color: var(--surface);
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-accent);
+}
+
+.button--secondary {
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  box-shadow: var(--shadow-accent-lift);
+}
+
+.button--secondary:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.button--secondary:disabled {
+  opacity: 0.6;
+}
+
+.button--primary:disabled {
+  background: var(--accent-strong);
+  box-shadow: none;
+  animation: button-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes button-pulse {
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition:
+      background-color 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease;
+  }
+
+  .button:hover:not(:disabled),
+  .button:active:not(:disabled) {
+    transform: none;
+  }
+
+  .button--primary:disabled {
+    animation: none;
+  }
+}

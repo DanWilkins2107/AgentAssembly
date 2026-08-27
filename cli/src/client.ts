@@ -1,6 +1,15 @@
-import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  createClient,
+  type Session,
+  type SupabaseClient,
+} from "@supabase/supabase-js";
 import { env } from "./env.js";
-import { clearSession, getSession, setSession, type SessionBundle } from "./session.js";
+import {
+  clearSession,
+  getSession,
+  setSession,
+  type SessionBundle,
+} from "./session.js";
 
 export class AuthError extends Error {
   name = "AuthError";
@@ -8,7 +17,10 @@ export class AuthError extends Error {
 
 // Supabase returns a null session on every auth failure, so its absence is the
 // failure signal; the accompanying error is kept as the cause.
-async function resume(client: SupabaseClient, cached: SessionBundle): Promise<Session | null> {
+async function resume(
+  client: SupabaseClient,
+  cached: SessionBundle,
+): Promise<Session | null> {
   const { data } = await client.auth.setSession(cached);
   return data.session;
 }

@@ -1,15 +1,31 @@
-import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { homedir } from "node:os";
-import { clearSession, getSession, sessionDir, SessionError, setSession, type SessionBundle } from "./session.js";
+import {
+  clearSession,
+  getSession,
+  sessionDir,
+  SessionError,
+  setSession,
+  type SessionBundle,
+} from "./session.js";
 
 // This suite asserts real POSIX mode bits (0600/0700), which only exist on
 // Linux — the only supported runtime for the CLI. Rather than silently skipping
 // on other platforms, fail loudly so a green run always means the perm tests ran.
 if (process.platform !== "linux") {
-  throw new Error(`CLI tests must run on Linux; got platform "${process.platform}"`);
+  throw new Error(
+    `CLI tests must run on Linux; got platform "${process.platform}"`,
+  );
 }
 
 const session: SessionBundle = {
@@ -49,7 +65,10 @@ describe("session", () => {
 
   it("overwrites a previous session", async () => {
     await setSession(session, dir);
-    const next = { access_token: "second-access", refresh_token: "second-refresh" };
+    const next = {
+      access_token: "second-access",
+      refresh_token: "second-refresh",
+    };
     await setSession(next, dir);
     await expect(getSession(dir)).resolves.toEqual(next);
   });
@@ -73,7 +92,11 @@ describe("session", () => {
   });
 
   it("throws a typed error on a well-formed file with the wrong shape", async () => {
-    await writeFile(join(dir, "session.json"), JSON.stringify({ access_token: "" }), "utf8");
+    await writeFile(
+      join(dir, "session.json"),
+      JSON.stringify({ access_token: "" }),
+      "utf8",
+    );
     const failure = getSession(dir);
     await expect(failure).rejects.toBeInstanceOf(SessionError);
     await expect(failure).rejects.toThrow(/not a valid session/);

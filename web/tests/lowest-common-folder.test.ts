@@ -98,6 +98,13 @@ const lowestCommonFolder = (folders: string[]) => {
   return first.slice(0, shared).join("/");
 };
 
+// src/pages owns no elements folder of its own — the placement gate rejects
+// src/pages/elements — so anything shared across pages lives in src/elements.
+const expectedOwnerOf = (consumers: string[]) => {
+  const folder = lowestCommonFolder(consumers.map(consumerOwnerOf));
+  return folder === "src/pages" ? "src" : folder;
+};
+
 const violationsFor = (
   path: string,
   consumers: string[],
@@ -109,7 +116,7 @@ const violationsFor = (
   if (consumers.length === 0)
     return excluded.has(path) ? [] : [`${path} — no consumers`];
 
-  const expected = lowestCommonFolder(consumers.map(consumerOwnerOf));
+  const expected = expectedOwnerOf(consumers);
   if (declared === expected) return [];
   return [`${path} — owner is ${declared}, expected ${expected}`];
 };
@@ -140,6 +147,23 @@ it("every element sits at the lowest common folder of its consumers", () => {
   );
 
   expect(violations).toEqual([]);
+});
+
+it("a cross-page element is owned by src, not src/pages", () => {
+  const crossPage = ["src/pages/Home/page.tsx", "src/pages/Login/page.tsx"];
+  const withinHome = [
+    "src/pages/Home/page.tsx",
+    "src/pages/Home/elements/Foo/Foo.tsx",
+  ];
+
+  expect(expectedOwnerOf(crossPage)).toBe("src");
+  expect(expectedOwnerOf(withinHome)).toBe("src/pages/Home");
+  expect(
+    violationsFor("src/elements/useAuthAction.ts", crossPage, new Set()),
+  ).toEqual([]);
+  expect(
+    violationsFor("src/pages/elements/useAuthAction.ts", crossPage, new Set()),
+  ).toHaveLength(1);
 });
 
 it("an exclude suppresses the no-consumers rule for its path alone", () => {
