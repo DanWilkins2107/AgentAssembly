@@ -85,8 +85,15 @@ data "aws_iam_policy_document" "state_access" {
 }
 
 # The egress-log bucket is created by the root stack in terraform/egress-log.tf.
-# Rename it there -> rename it here. The read half is the fan-out of Get calls the
-# aws_s3_bucket refresh makes, so plan needs all of them to see the bucket at all.
+# Rename it there -> rename it here. Terraform outputs cannot carry the name across:
+# this stack is hand-applied before the bucket exists, and its state is local so the
+# root stack cannot read it back either - same as the -tfstate/-tflock names above.
+locals {
+  egress_log_bucket_arn = "arn:aws:s3:::${var.name_prefix}-egress-logs"
+}
+
+# The read half is the fan-out of Get calls the aws_s3_bucket refresh makes, so
+# plan needs all of them to see the bucket at all.
 data "aws_iam_policy_document" "egress_log_bucket_read" {
   statement {
     sid    = "EgressLogBucketRead"
@@ -110,7 +117,7 @@ data "aws_iam_policy_document" "egress_log_bucket_read" {
       "s3:GetLifecycleConfiguration",
       "s3:GetReplicationConfiguration",
     ]
-    resources = ["arn:aws:s3:::${var.name_prefix}-egress-logs"]
+    resources = [local.egress_log_bucket_arn]
   }
 }
 
@@ -317,7 +324,7 @@ data "aws_iam_policy_document" "ci_apply" {
       "s3:PutEncryptionConfiguration",
       "s3:PutLifecycleConfiguration",
     ]
-    resources = ["arn:aws:s3:::${var.name_prefix}-egress-logs"]
+    resources = [local.egress_log_bucket_arn]
   }
 
   # kms:TagResource is required by CreateKey to tag the key on creation, and the

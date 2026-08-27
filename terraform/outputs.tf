@@ -23,7 +23,7 @@ output "vm_instance_role_arn" {
 }
 
 output "egress_log_bucket" {
-  value = aws_s3_bucket.egress_log.bucket
+  value = module.egress_log_bucket.bucket
 }
 
 output "egress_log_prefix" {

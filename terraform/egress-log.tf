@@ -1,43 +1,15 @@
 # The CI roles' grants build this bucket's ARN from the same prefix in
-# terraform/iam/main.tf (egress_log_bucket_read, EgressLogBucketWrite).
-# Rename here -> rename there.
-resource "aws_s3_bucket" "egress_log" {
-  bucket = "${local.name_prefix}-egress-logs"
-}
-
+# terraform/iam/main.tf (egress_log_bucket_arn). Rename here -> rename there.
 # Deliberately unversioned: a noncurrent version of a log line the VM cannot read
 # back is dead weight, and versioning would outlive the lifecycle expiry below.
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "egress_log" {
-  bucket = aws_s3_bucket.egress_log.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "egress_log" {
-  bucket = aws_s3_bucket.egress_log.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_ownership_controls" "egress_log" {
-  bucket = aws_s3_bucket.egress_log.id
-
-  rule {
-    object_ownership = "BucketOwnerEnforced"
-  }
+module "egress_log_bucket" {
+  source = "./modules/s3-bucket"
+  bucket = "${local.name_prefix}-egress-logs"
 }
 
 # The expiry is the cost ceiling for this bucket, not a cleanup habit.
 resource "aws_s3_bucket_lifecycle_configuration" "egress_log" {
-  bucket = aws_s3_bucket.egress_log.id
+  bucket = module.egress_log_bucket.id
 
   rule {
     id     = "expire-egress-logs"
@@ -55,36 +27,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "egress_log" {
   }
 }
 
-data "aws_iam_policy_document" "egress_log_bucket" {
-  statement {
-    sid     = "DenyInsecureTransport"
-    effect  = "Deny"
-    actions = ["s3:*"]
-    resources = [
-      aws_s3_bucket.egress_log.arn,
-      "${aws_s3_bucket.egress_log.arn}/*",
-    ]
-
-    principals {
-      type        = "*"
-      identifiers = ["*"]
-    }
-
-    condition {
-      test     = "Bool"
-      variable = "aws:SecureTransport"
-      values   = ["false"]
-    }
-  }
-}
-
-resource "aws_s3_bucket_policy" "egress_log" {
-  bucket = aws_s3_bucket.egress_log.id
-  policy = data.aws_iam_policy_document.egress_log_bucket.json
-
-  depends_on = [aws_s3_bucket_public_access_block.egress_log]
-}
-
 # Write-only. The box appends history it cannot read back, list or erase, so a
 # compromised session cannot check or cover what it already shipped. The denies
 # are not redundant with the narrow Allow: they survive any later policy — on the
@@ -95,7 +37,7 @@ data "aws_iam_policy_document" "vm_egress_log_write" {
     sid       = "PutEgressLogs"
     effect    = "Allow"
     actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.egress_log.arn}/${local.egress_log_prefix}/*"]
+    resources = ["${module.egress_log_bucket.arn}/${local.egress_log_prefix}/*"]
   }
 
   statement {
@@ -108,8 +50,8 @@ data "aws_iam_policy_document" "vm_egress_log_write" {
       "s3:*MultipartUpload*",
     ]
     resources = [
-      aws_s3_bucket.egress_log.arn,
-      "${aws_s3_bucket.egress_log.arn}/*",
+      module.egress_log_bucket.arn,
+      "${module.egress_log_bucket.arn}/*",
     ]
   }
 }
