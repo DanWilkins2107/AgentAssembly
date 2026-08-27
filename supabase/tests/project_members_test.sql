@@ -96,7 +96,9 @@ select is_empty(
   'project_members has no RLS policies yet: grants and policies land in slice 8c320d4b'
 );
 
--- Behaviour
+-- Behaviour. pgTAP runs as postgres: table owner and superuser, so RLS is not
+-- applied to the statements below. RLS-on-with-no-policies is what denies anon
+-- and authenticated through PostgREST.
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values
