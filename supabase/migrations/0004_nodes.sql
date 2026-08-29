@@ -9,7 +9,6 @@ create table public.nodes (
   -- No default: every caller states the status it means.
   status public.node_status not null,
   is_vision boolean not null default false,
-  breakdown_on_merge boolean not null default false,
   spec text
     constraint nodes_spec_length check (char_length(spec) <= 20000),
   invalidation_reason text
@@ -19,13 +18,9 @@ create table public.nodes (
     constraint nodes_pr_url_length check (char_length(pr_url) <= 2000),
   pr_number integer
     constraint nodes_pr_number_positive check (pr_number > 0),
-  merge_sha text
-    constraint nodes_merge_sha_length check (char_length(merge_sha) <= 64),
   claimed_by text
     constraint nodes_claimed_by_length check (char_length(claimed_by) <= 200),
   claimed_at timestamptz,
-  canvas_png_path text
-    constraint nodes_canvas_png_path_length check (char_length(canvas_png_path) <= 1024),
   created_by uuid not null references auth.users (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

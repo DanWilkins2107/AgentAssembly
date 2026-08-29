@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap;
-select plan(91);
+select plan(82);
 
 -- Columns
 
@@ -12,11 +12,10 @@ select has_table('public', 'nodes', 'table public.nodes exists');
 select columns_are(
   'public', 'nodes',
   array['id', 'project_id', 'title', 'body', 'status', 'is_vision',
-        'breakdown_on_merge', 'spec', 'invalidation_reason', 'pr_url',
-        'pr_number', 'merge_sha', 'claimed_by', 'claimed_at',
-        'canvas_png_path', 'created_by', 'created_at',
+        'spec', 'invalidation_reason', 'pr_url', 'pr_number',
+        'claimed_by', 'claimed_at', 'created_by', 'created_at',
         'updated_at', 'fts'],
-  'nodes has exactly the nineteen columns and no others'
+  'nodes has exactly the sixteen columns and no others'
 );
 
 select col_type_is('public', 'nodes', 'id',                 'uuid',                     'id is uuid');
@@ -24,15 +23,12 @@ select col_type_is('public', 'nodes', 'project_id',         'uuid',             
 select col_type_is('public', 'nodes', 'title',              'text',                     'title is text');
 select col_type_is('public', 'nodes', 'body',               'text',                     'body is text');
 select col_type_is('public', 'nodes', 'is_vision',          'boolean',                  'is_vision is boolean');
-select col_type_is('public', 'nodes', 'breakdown_on_merge', 'boolean',                  'breakdown_on_merge is boolean');
 select col_type_is('public', 'nodes', 'spec',               'text',                     'spec is text');
 select col_type_is('public', 'nodes', 'invalidation_reason','text',                     'invalidation_reason is text');
 select col_type_is('public', 'nodes', 'pr_url',             'text',                     'pr_url is text');
 select col_type_is('public', 'nodes', 'pr_number',          'integer',                  'pr_number is integer');
-select col_type_is('public', 'nodes', 'merge_sha',          'text',                     'merge_sha is text');
 select col_type_is('public', 'nodes', 'claimed_by',         'text',                     'claimed_by is text');
 select col_type_is('public', 'nodes', 'claimed_at',         'timestamp with time zone', 'claimed_at is timestamptz');
-select col_type_is('public', 'nodes', 'canvas_png_path',    'text',                     'canvas_png_path is text');
 select col_type_is('public', 'nodes', 'created_by',         'uuid',                     'created_by is uuid');
 select col_type_is('public', 'nodes', 'created_at',         'timestamp with time zone', 'created_at is timestamptz');
 select col_type_is('public', 'nodes', 'updated_at',         'timestamp with time zone', 'updated_at is timestamptz');
@@ -56,7 +52,6 @@ select col_not_null('public', 'nodes', 'title',              'title is NOT NULL'
 select col_not_null('public', 'nodes', 'body',               'body is NOT NULL');
 select col_not_null('public', 'nodes', 'status',             'status is NOT NULL');
 select col_not_null('public', 'nodes', 'is_vision',          'is_vision is NOT NULL');
-select col_not_null('public', 'nodes', 'breakdown_on_merge', 'breakdown_on_merge is NOT NULL');
 select col_not_null('public', 'nodes', 'created_by',         'created_by is NOT NULL');
 select col_not_null('public', 'nodes', 'created_at',         'created_at is NOT NULL');
 select col_not_null('public', 'nodes', 'updated_at',         'updated_at is NOT NULL');
@@ -65,10 +60,8 @@ select col_is_null('public', 'nodes', 'spec',                'spec is nullable: 
 select col_is_null('public', 'nodes', 'invalidation_reason', 'invalidation_reason is nullable and unconditioned: invalidating without a reason is legal');
 select col_is_null('public', 'nodes', 'pr_url',              'pr_url is nullable: a node need not have a PR');
 select col_is_null('public', 'nodes', 'pr_number',           'pr_number is nullable: a node need not have a PR');
-select col_is_null('public', 'nodes', 'merge_sha',           'merge_sha is nullable until the PR merges');
 select col_is_null('public', 'nodes', 'claimed_by',          'claimed_by is nullable: null means unclaimed');
 select col_is_null('public', 'nodes', 'claimed_at',          'claimed_at is nullable: null means unclaimed');
-select col_is_null('public', 'nodes', 'canvas_png_path',     'canvas_png_path is nullable: not every node has a canvas');
 
 -- Defaults
 
@@ -91,9 +84,6 @@ select is(pg_temp.column_default('body'), '''''::text',
 
 select is(pg_temp.column_default('is_vision'), 'false',
   'is_vision defaults to false');
-
-select is(pg_temp.column_default('breakdown_on_merge'), 'false',
-  'breakdown_on_merge defaults to false');
 
 select is(pg_temp.column_default('created_at'), 'now()',
   'created_at defaults to now()');
@@ -149,10 +139,9 @@ select set_eq(
       where conrelid = 'public.nodes'::regclass and contype = 'c' $$,
   array['nodes_title_length', 'nodes_body_length', 'nodes_spec_length',
         'nodes_invalidation_reason_length', 'nodes_pr_url_length',
-        'nodes_pr_number_positive', 'nodes_merge_sha_length',
-        'nodes_claimed_by_length', 'nodes_canvas_png_path_length',
+        'nodes_pr_number_positive', 'nodes_claimed_by_length',
         'nodes_claim_pair', 'nodes_pr_pair'],
-  'nodes has exactly the eleven named CHECK constraints'
+  'nodes has exactly the nine named CHECK constraints'
 );
 
 -- Indexes
@@ -243,13 +232,12 @@ values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000
         'Minimal node', 'human_braindump_needed', '00000000-0000-0000-0000-0000000000a1');
 
 select row_eq(
-  $$ select body, is_vision, breakdown_on_merge, spec, invalidation_reason,
-            pr_url, pr_number, merge_sha, claimed_by, claimed_at,
-            canvas_png_path
+  $$ select body, is_vision, spec, invalidation_reason,
+            pr_url, pr_number, claimed_by, claimed_at
        from public.nodes where id = '00000000-0000-0000-0000-0000000000c1' $$,
-  row(''::text, false, false, null::text, null::text, null::text, null::integer,
-      null::text, null::text, null::timestamptz, null::text),
-  'a minimal node starts unclaimed, unlinked, not a vision and not flagged for breakdown'
+  row(''::text, false, null::text, null::text, null::text, null::integer,
+      null::text, null::timestamptz),
+  'a minimal node starts unclaimed, unlinked and not a vision'
 );
 
 select throws_ok(
@@ -307,15 +295,6 @@ select throws_ok(
 );
 
 select throws_ok(
-  $$ insert into public.nodes (project_id, title, status, created_by, merge_sha)
-     values ('00000000-0000-0000-0000-0000000000b1', 'Long sha',
-             'done', '00000000-0000-0000-0000-0000000000a1', repeat('x', 65)) $$,
-  '23514',
-  null,
-  'a merge_sha longer than 64 characters is rejected'
-);
-
-select throws_ok(
   $$ insert into public.nodes (project_id, title, status, created_by, claimed_by, claimed_at)
      values ('00000000-0000-0000-0000-0000000000b1', 'Long claimant',
              'ready_for_pickup', '00000000-0000-0000-0000-0000000000a1', repeat('x', 201), now()) $$,
@@ -349,15 +328,6 @@ select throws_ok(
   '23514',
   null,
   'an invalidation_reason longer than 5000 characters is rejected'
-);
-
-select throws_ok(
-  $$ insert into public.nodes (project_id, title, status, created_by, canvas_png_path)
-     values ('00000000-0000-0000-0000-0000000000b1', 'Long canvas path',
-             'human_braindump_needed', '00000000-0000-0000-0000-0000000000a1', repeat('x', 1025)) $$,
-  '23514',
-  null,
-  'a canvas_png_path longer than 1024 characters is rejected'
 );
 
 select throws_ok(
