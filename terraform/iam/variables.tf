@@ -6,7 +6,7 @@ variable "region" {
 variable "name_prefix" {
   type        = string
   default     = "agentassembly"
-  description = "Must match name_prefix in terraform/locals.tf and the bucket/table literals in terraform/backend.tf - state_access in main.tf builds the -tfstate and -tflock ARNs from it."
+  description = "Must match name_prefix in terraform/locals.tf and the bucket/table literals in terraform/backend.tf and iam/backend.tf - state_access in main.tf builds the -tfstate and -tflock ARNs from it."
 }
 
 variable "account_id" {
