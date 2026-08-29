@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap;
-select plan(90);
+select plan(91);
 
 -- Columns
 
@@ -14,9 +14,9 @@ select columns_are(
   array['id', 'project_id', 'title', 'body', 'status', 'is_vision',
         'breakdown_on_merge', 'spec', 'invalidation_reason', 'pr_url',
         'pr_number', 'merge_sha', 'claimed_by', 'claimed_at',
-        'canvas_png_path', 'tldraw_doc', 'created_by', 'created_at',
+        'canvas_png_path', 'created_by', 'created_at',
         'updated_at', 'fts'],
-  'nodes has exactly the twenty columns and no others'
+  'nodes has exactly the nineteen columns and no others'
 );
 
 select col_type_is('public', 'nodes', 'id',                 'uuid',                     'id is uuid');
@@ -33,7 +33,6 @@ select col_type_is('public', 'nodes', 'merge_sha',          'text',             
 select col_type_is('public', 'nodes', 'claimed_by',         'text',                     'claimed_by is text');
 select col_type_is('public', 'nodes', 'claimed_at',         'timestamp with time zone', 'claimed_at is timestamptz');
 select col_type_is('public', 'nodes', 'canvas_png_path',    'text',                     'canvas_png_path is text');
-select col_type_is('public', 'nodes', 'tldraw_doc',         'jsonb',                    'tldraw_doc is jsonb');
 select col_type_is('public', 'nodes', 'created_by',         'uuid',                     'created_by is uuid');
 select col_type_is('public', 'nodes', 'created_at',         'timestamp with time zone', 'created_at is timestamptz');
 select col_type_is('public', 'nodes', 'updated_at',         'timestamp with time zone', 'updated_at is timestamptz');
@@ -70,7 +69,6 @@ select col_is_null('public', 'nodes', 'merge_sha',           'merge_sha is nulla
 select col_is_null('public', 'nodes', 'claimed_by',          'claimed_by is nullable: null means unclaimed');
 select col_is_null('public', 'nodes', 'claimed_at',          'claimed_at is nullable: null means unclaimed');
 select col_is_null('public', 'nodes', 'canvas_png_path',     'canvas_png_path is nullable: not every node has a canvas');
-select col_is_null('public', 'nodes', 'tldraw_doc',          'tldraw_doc is nullable: not every node has a canvas');
 
 -- Defaults
 
@@ -149,10 +147,12 @@ select set_eq(
 select set_eq(
   $$ select conname::text from pg_constraint
       where conrelid = 'public.nodes'::regclass and contype = 'c' $$,
-  array['nodes_title_length', 'nodes_pr_url_length', 'nodes_pr_number_positive',
-        'nodes_merge_sha_length', 'nodes_claimed_by_length',
-        'nodes_canvas_png_path_length', 'nodes_claim_pair', 'nodes_pr_pair'],
-  'nodes has exactly the eight named CHECK constraints'
+  array['nodes_title_length', 'nodes_body_length', 'nodes_spec_length',
+        'nodes_invalidation_reason_length', 'nodes_pr_url_length',
+        'nodes_pr_number_positive', 'nodes_merge_sha_length',
+        'nodes_claimed_by_length', 'nodes_canvas_png_path_length',
+        'nodes_claim_pair', 'nodes_pr_pair'],
+  'nodes has exactly the eleven named CHECK constraints'
 );
 
 -- Indexes
@@ -245,10 +245,10 @@ values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000
 select row_eq(
   $$ select body, is_vision, breakdown_on_merge, spec, invalidation_reason,
             pr_url, pr_number, merge_sha, claimed_by, claimed_at,
-            canvas_png_path, tldraw_doc
+            canvas_png_path
        from public.nodes where id = '00000000-0000-0000-0000-0000000000c1' $$,
   row(''::text, false, false, null::text, null::text, null::text, null::integer,
-      null::text, null::text, null::timestamptz, null::text, null::jsonb),
+      null::text, null::text, null::timestamptz, null::text),
   'a minimal node starts unclaimed, unlinked, not a vision and not flagged for breakdown'
 );
 
@@ -322,6 +322,33 @@ select throws_ok(
   '23514',
   null,
   'a claimed_by longer than 200 characters is rejected'
+);
+
+select throws_ok(
+  $$ insert into public.nodes (project_id, title, body, status, created_by)
+     values ('00000000-0000-0000-0000-0000000000b1', 'Long body', repeat('x', 20001),
+             'human_braindump_needed', '00000000-0000-0000-0000-0000000000a1') $$,
+  '23514',
+  null,
+  'a body longer than 20000 characters is rejected'
+);
+
+select throws_ok(
+  $$ insert into public.nodes (project_id, title, spec, status, created_by)
+     values ('00000000-0000-0000-0000-0000000000b1', 'Long spec', repeat('x', 20001),
+             'spec_review', '00000000-0000-0000-0000-0000000000a1') $$,
+  '23514',
+  null,
+  'a spec longer than 20000 characters is rejected'
+);
+
+select throws_ok(
+  $$ insert into public.nodes (project_id, title, invalidation_reason, status, created_by)
+     values ('00000000-0000-0000-0000-0000000000b1', 'Long reason', repeat('x', 5001),
+             'invalidated', '00000000-0000-0000-0000-0000000000a1') $$,
+  '23514',
+  null,
+  'an invalidation_reason longer than 5000 characters is rejected'
 );
 
 select throws_ok(

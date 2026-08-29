@@ -3,16 +3,18 @@ create table public.nodes (
   project_id uuid not null references public.projects (id),
   title text not null
     constraint nodes_title_length check (char_length(title) between 1 and 300),
-  -- body, spec and invalidation_reason are uncapped by design: they carry
-  -- braindumps, specs and post-mortems that a length limit would truncate.
-  body text not null default '',
+  body text not null default ''
+    constraint nodes_body_length check (char_length(body) <= 20000),
   -- The node_status enum, never text: an unknown status must fail to insert.
   -- No default: every caller states the status it means.
   status public.node_status not null,
   is_vision boolean not null default false,
   breakdown_on_merge boolean not null default false,
-  spec text,
-  invalidation_reason text,
+  spec text
+    constraint nodes_spec_length check (char_length(spec) <= 20000),
+  invalidation_reason text
+    constraint nodes_invalidation_reason_length
+      check (char_length(invalidation_reason) <= 5000),
   pr_url text
     constraint nodes_pr_url_length check (char_length(pr_url) <= 2000),
   pr_number integer
@@ -24,7 +26,6 @@ create table public.nodes (
   claimed_at timestamptz,
   canvas_png_path text
     constraint nodes_canvas_png_path_length check (char_length(canvas_png_path) <= 1024),
-  tldraw_doc jsonb,
   created_by uuid not null references auth.users (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
