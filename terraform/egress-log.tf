@@ -1,10 +1,8 @@
-# The CI roles' grants build this bucket's ARN from the same prefix in
-# terraform/iam/main.tf (egress_log_bucket_arn). Rename here -> rename there.
 # Deliberately unversioned: a noncurrent version of a log line the VM cannot read
 # back is dead weight, and versioning would outlive the lifecycle expiry below.
 module "egress_log_bucket" {
   source = "./modules/s3-bucket"
-  bucket = "${local.name_prefix}-egress-logs"
+  bucket = module.names.egress_log_bucket
 }
 
 # The expiry is the cost ceiling for this bucket, not a cleanup habit.

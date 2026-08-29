@@ -59,37 +59,35 @@ data "aws_iam_policy_document" "ci_apply_assume" {
   }
 }
 
-# State backend lives in terraform/bootstrap: bucket ${name_prefix}-tfstate,
-# lock table ${name_prefix}-tflock. Rename there -> rename here.
+module "names" {
+  source = "../modules/names"
+}
+
+locals {
+  name_prefix = module.names.prefix
+}
+
 data "aws_iam_policy_document" "state_access" {
   statement {
     sid       = "StateBucketList"
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
-    resources = ["arn:aws:s3:::${var.name_prefix}-tfstate"]
+    resources = ["arn:aws:s3:::${module.names.state_bucket}"]
   }
 
   statement {
     sid       = "StateObjectRW"
     effect    = "Allow"
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = ["arn:aws:s3:::${var.name_prefix}-tfstate/root/*"]
+    resources = ["arn:aws:s3:::${module.names.state_bucket}/root/*"]
   }
 
   statement {
     sid       = "StateLock"
     effect    = "Allow"
     actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
-    resources = ["arn:aws:dynamodb:${var.region}:${var.account_id}:table/${var.name_prefix}-tflock"]
+    resources = ["arn:aws:dynamodb:${var.region}:${var.account_id}:table/${module.names.lock_table}"]
   }
-}
-
-# The egress-log bucket is created by the root stack in terraform/egress-log.tf.
-# Rename it there -> rename it here. Terraform outputs cannot carry the name across:
-# this stack is hand-applied before the bucket exists, and its state is local so the
-# root stack cannot read it back either - same as the -tfstate/-tflock names above.
-locals {
-  egress_log_bucket_arn = "arn:aws:s3:::${var.name_prefix}-egress-logs"
 }
 
 # The read half is the fan-out of Get calls the aws_s3_bucket refresh makes, so
@@ -117,7 +115,7 @@ data "aws_iam_policy_document" "egress_log_bucket_read" {
       "s3:GetLifecycleConfiguration",
       "s3:GetReplicationConfiguration",
     ]
-    resources = [local.egress_log_bucket_arn]
+    resources = [module.names.egress_log_bucket_arn]
   }
 }
 
@@ -138,7 +136,7 @@ data "aws_iam_policy_document" "kms_common" {
     condition {
       test     = "StringEquals"
       variable = "aws:ResourceTag/Project"
-      values   = [var.name_prefix]
+      values   = [local.name_prefix]
     }
   }
 
@@ -197,14 +195,14 @@ data "aws_iam_policy_document" "ci_apply" {
       "iam:ListRolePolicies",
       "iam:ListInstanceProfilesForRole",
     ]
-    resources = ["arn:aws:iam::${var.account_id}:role/${var.name_prefix}-*"]
+    resources = ["arn:aws:iam::${var.account_id}:role/${local.name_prefix}-*"]
   }
 
   statement {
     sid       = "IamRoleAttach"
     effect    = "Allow"
     actions   = ["iam:AttachRolePolicy", "iam:DetachRolePolicy"]
-    resources = ["arn:aws:iam::${var.account_id}:role/${var.name_prefix}-*"]
+    resources = ["arn:aws:iam::${var.account_id}:role/${local.name_prefix}-*"]
 
     condition {
       test     = "StringEquals"
@@ -229,14 +227,14 @@ data "aws_iam_policy_document" "ci_apply" {
       "iam:UntagInstanceProfile",
       "iam:ListInstanceProfileTags",
     ]
-    resources = ["arn:aws:iam::${var.account_id}:instance-profile/${var.name_prefix}-*"]
+    resources = ["arn:aws:iam::${var.account_id}:instance-profile/${local.name_prefix}-*"]
   }
 
   statement {
     sid       = "IamPassRole"
     effect    = "Allow"
     actions   = ["iam:PassRole"]
-    resources = ["arn:aws:iam::${var.account_id}:role/${var.name_prefix}-*"]
+    resources = ["arn:aws:iam::${var.account_id}:role/${local.name_prefix}-*"]
 
     condition {
       test     = "StringEquals"
@@ -249,7 +247,7 @@ data "aws_iam_policy_document" "ci_apply" {
     sid       = "IamRoleInline"
     effect    = "Allow"
     actions   = ["iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy"]
-    resources = ["arn:aws:iam::${var.account_id}:role/${var.name_prefix}-*"]
+    resources = ["arn:aws:iam::${var.account_id}:role/${local.name_prefix}-*"]
   }
 
   statement {
@@ -272,7 +270,7 @@ data "aws_iam_policy_document" "ci_apply" {
       "lambda:UntagResource",
       "lambda:ListTags",
     ]
-    resources = ["arn:aws:lambda:${var.region}:${var.account_id}:function:${var.name_prefix}-*"]
+    resources = ["arn:aws:lambda:${var.region}:${var.account_id}:function:${local.name_prefix}-*"]
   }
 
   statement {
@@ -291,7 +289,7 @@ data "aws_iam_policy_document" "ci_apply" {
       "events:UntagResource",
       "events:ListTagsForResource",
     ]
-    resources = ["arn:aws:events:${var.region}:${var.account_id}:rule/${var.name_prefix}-*"]
+    resources = ["arn:aws:events:${var.region}:${var.account_id}:rule/${local.name_prefix}-*"]
   }
 
   statement {
@@ -306,7 +304,7 @@ data "aws_iam_policy_document" "ci_apply" {
       "secretsmanager:TagResource",
       "secretsmanager:UntagResource",
     ]
-    resources = ["arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.name_prefix}-*"]
+    resources = ["arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${local.name_prefix}-*"]
   }
 
   # Bucket-level only: terraform never puts or reads the log objects themselves.
@@ -324,7 +322,7 @@ data "aws_iam_policy_document" "ci_apply" {
       "s3:PutEncryptionConfiguration",
       "s3:PutLifecycleConfiguration",
     ]
-    resources = [local.egress_log_bucket_arn]
+    resources = [module.names.egress_log_bucket_arn]
   }
 
   # kms:TagResource is required by CreateKey to tag the key on creation, and the
@@ -338,7 +336,7 @@ data "aws_iam_policy_document" "ci_apply" {
     condition {
       test     = "StringEquals"
       variable = "aws:RequestTag/Project"
-      values   = [var.name_prefix]
+      values   = [local.name_prefix]
     }
   }
 
@@ -360,7 +358,7 @@ data "aws_iam_policy_document" "ci_apply" {
     condition {
       test     = "StringEquals"
       variable = "aws:ResourceTag/Project"
-      values   = [var.name_prefix]
+      values   = [local.name_prefix]
     }
   }
 
@@ -370,14 +368,14 @@ data "aws_iam_policy_document" "ci_apply" {
     sid       = "KmsAlias"
     effect    = "Allow"
     actions   = ["kms:CreateAlias", "kms:DeleteAlias"]
-    resources = ["arn:aws:kms:${var.region}:${var.account_id}:alias/${var.name_prefix}-*"]
+    resources = ["arn:aws:kms:${var.region}:${var.account_id}:alias/${local.name_prefix}-*"]
   }
 
   statement {
     sid       = "Budgets"
     effect    = "Allow"
     actions   = ["budgets:ViewBudget", "budgets:ModifyBudget"]
-    resources = ["arn:aws:budgets::${var.account_id}:budget/${var.name_prefix}-*"]
+    resources = ["arn:aws:budgets::${var.account_id}:budget/${local.name_prefix}-*"]
   }
 
   # us-east-1, not var.region: AWS Budgets only publishes to us-east-1 topics, so
@@ -396,7 +394,7 @@ data "aws_iam_policy_document" "ci_apply" {
       "sns:UntagResource",
       "sns:ListTagsForResource",
     ]
-    resources = ["arn:aws:sns:us-east-1:${var.account_id}:${var.name_prefix}-*"]
+    resources = ["arn:aws:sns:us-east-1:${var.account_id}:${local.name_prefix}-*"]
   }
 
   statement {
@@ -410,35 +408,35 @@ data "aws_iam_policy_document" "ci_apply" {
     sid       = "DenySecretValue"
     effect    = "Deny"
     actions   = ["secretsmanager:GetSecretValue", "secretsmanager:PutSecretValue"]
-    resources = ["arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.name_prefix}-*"]
+    resources = ["arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${local.name_prefix}-*"]
   }
 
   statement {
     sid       = "DenyCiSelfManage"
     effect    = "Deny"
     actions   = ["iam:*"]
-    resources = ["arn:aws:iam::${var.account_id}:role/${var.name_prefix}-ci-*"]
+    resources = ["arn:aws:iam::${var.account_id}:role/${local.name_prefix}-ci-*"]
   }
 }
 
 resource "aws_iam_role" "ci_plan" {
-  name               = "${var.name_prefix}-ci-plan"
+  name               = "${local.name_prefix}-ci-plan"
   assume_role_policy = data.aws_iam_policy_document.ci_plan_assume.json
 }
 
 resource "aws_iam_role_policy" "ci_plan" {
-  name   = "${var.name_prefix}-ci-plan"
+  name   = "${local.name_prefix}-ci-plan"
   role   = aws_iam_role.ci_plan.id
   policy = data.aws_iam_policy_document.ci_plan.json
 }
 
 resource "aws_iam_role" "ci_apply" {
-  name               = "${var.name_prefix}-ci-apply"
+  name               = "${local.name_prefix}-ci-apply"
   assume_role_policy = data.aws_iam_policy_document.ci_apply_assume.json
 }
 
 resource "aws_iam_role_policy" "ci_apply" {
-  name   = "${var.name_prefix}-ci-apply"
+  name   = "${local.name_prefix}-ci-apply"
   role   = aws_iam_role.ci_apply.id
   policy = data.aws_iam_policy_document.ci_apply.json
 }
