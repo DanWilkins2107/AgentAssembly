@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
-import { env } from "./env.ts";
+import { env, serviceRoleKey } from "./env.ts";
 
 const noPersist = { auth: { autoRefreshToken: false, persistSession: false } };
 
@@ -8,7 +8,7 @@ export function anonClient(): SupabaseClient {
 }
 
 export function serviceRoleClient(): SupabaseClient {
-  return createClient(env.url, env.serviceRoleKey, noPersist);
+  return createClient(env.url, serviceRoleKey, noPersist);
 }
 
 export async function provisionUser(

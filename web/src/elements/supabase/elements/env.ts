@@ -1,9 +1,6 @@
-import {
-  supabaseEnvSchema,
-  type SupabaseEnv,
-} from "../../../../../supabase-env/schema";
+import { supabaseEnvSchema } from "../../../../../supabase-env/schema";
 
-export const env: SupabaseEnv = supabaseEnvSchema.parse({
+export const env = supabaseEnvSchema.parse({
   url: import.meta.env.VITE_SUPABASE_URL,
   anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
 });
