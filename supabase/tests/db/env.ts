@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -9,4 +10,13 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-export const env: Env = envSchema.parse(process.env);
+function supabaseStatusEnv(): Record<string, string> {
+  const output = execFileSync("supabase", ["status", "-o", "env"], { encoding: "utf8" });
+  const assignments = output.split("\n").flatMap((line) => {
+    const match = /^(\w+)="(.*)"$/.exec(line);
+    return match ? [[match[1], match[2]] as const] : [];
+  });
+  return Object.fromEntries(assignments);
+}
+
+export const env: Env = envSchema.parse(supabaseStatusEnv());
