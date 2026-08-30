@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { supabaseEnvSchema } from "../../../supabase-env/schema.ts";
+import { supabaseEnvSchema } from "../../env-schema.ts";
 
 export const env = supabaseEnvSchema.parse({
   url: process.env.SUPABASE_URL,
