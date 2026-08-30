@@ -123,10 +123,72 @@ data "aws_iam_policy_document" "kms_common" {
   }
 }
 
+# Read side of what the root stack (terraform/) manages. ci_plan needs it or every
+# refresh hits AccessDenied; ci_apply sources it too because apply refreshes first.
+data "aws_iam_policy_document" "root_read" {
+  statement {
+    sid    = "IamRoleRead"
+    effect = "Allow"
+    actions = [
+      "iam:GetRole",
+      "iam:ListRoleTags",
+      "iam:ListRolePolicies",
+      "iam:ListAttachedRolePolicies",
+    ]
+    resources = ["arn:aws:iam::${var.account_id}:role/${local.name_prefix}-*"]
+  }
+
+  statement {
+    sid       = "IamInstanceProfileRead"
+    effect    = "Allow"
+    actions   = ["iam:GetInstanceProfile", "iam:ListInstanceProfileTags"]
+    resources = ["arn:aws:iam::${var.account_id}:instance-profile/${local.name_prefix}-*"]
+  }
+
+  # us-east-1, not local.region: AWS Budgets only publishes to us-east-1 topics, so
+  # terraform/spend-guard.tf creates the topic behind an aliased provider.
+  statement {
+    sid    = "SnsRead"
+    effect = "Allow"
+    actions = [
+      "sns:GetTopicAttributes",
+      "sns:GetSubscriptionAttributes",
+      "sns:ListSubscriptionsByTopic",
+      "sns:ListTagsForResource",
+    ]
+    resources = ["arn:aws:sns:us-east-1:${var.account_id}:${local.name_prefix}-*"]
+  }
+
+  statement {
+    sid       = "BudgetsRead"
+    effect    = "Allow"
+    actions   = ["budgets:ViewBudget"]
+    resources = ["arn:aws:budgets::${var.account_id}:budget/${local.name_prefix}-*"]
+  }
+
+  statement {
+    sid       = "SecretsRead"
+    effect    = "Allow"
+    actions   = ["secretsmanager:DescribeSecret", "secretsmanager:GetResourcePolicy"]
+    resources = ["arn:aws:secretsmanager:${local.region}:${var.account_id}:secret:${local.name_prefix}-*"]
+  }
+
+  # Plan output lands in a public PR comment and ci-plan is assumed on PR runs.
+  # DescribeSecret is metadata only; the value must stay unreadable, and a deny here
+  # cannot be lifted by a secret resource policy.
+  statement {
+    sid       = "DenySecretValue"
+    effect    = "Deny"
+    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:PutSecretValue"]
+    resources = ["arn:aws:secretsmanager:${local.region}:${var.account_id}:secret:${local.name_prefix}-*"]
+  }
+}
+
 data "aws_iam_policy_document" "ci_plan" {
   source_policy_documents = [
     data.aws_iam_policy_document.state_access.json,
     data.aws_iam_policy_document.kms_common.json,
+    data.aws_iam_policy_document.root_read.json,
   ]
 
   statement {
@@ -141,6 +203,7 @@ data "aws_iam_policy_document" "ci_apply" {
   source_policy_documents = [
     data.aws_iam_policy_document.state_access.json,
     data.aws_iam_policy_document.kms_common.json,
+    data.aws_iam_policy_document.root_read.json,
   ]
 
   statement {
@@ -347,13 +410,6 @@ data "aws_iam_policy_document" "ci_apply" {
     effect    = "Allow"
     actions   = ["sns:Unsubscribe"]
     resources = ["*"]
-  }
-
-  statement {
-    sid       = "DenySecretValue"
-    effect    = "Deny"
-    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:PutSecretValue"]
-    resources = ["arn:aws:secretsmanager:${local.region}:${var.account_id}:secret:${local.name_prefix}-*"]
   }
 
   statement {
