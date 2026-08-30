@@ -12,6 +12,14 @@ echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/githubcli.gpg] https://cli.git
 apt-get update
 # force-confold: squid.conf is already on disk, so dpkg must not replace it.
 apt-get install -y -o Dpkg::Options::=--force-confold nodejs gh squid
+# The squid package already created /var/log/squid; this restates its ownership and
+# mode so they are ours rather than whatever the package shipped.
+# Owner proxy, not root: squid starts as root, drops to the proxy user, and reopens
+# the log itself on rotate, which a root-owned dir would block.
+# 0750: only the proxy user and group proxy get in. The session uid is in neither, so
+# it can neither read the audit trail of its own egress nor truncate it. Root still
+# reads it for the pre-poweroff shipper.
+install -d -o proxy -g proxy -m 0750 /var/log/squid
 systemctl enable --now squid
 
 npm i -g @anthropic-ai/claude-code

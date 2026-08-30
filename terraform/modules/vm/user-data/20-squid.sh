@@ -22,7 +22,15 @@ http_access deny connect_method !ssl_ports
 http_access allow session allowlist
 http_access deny all
 
-access_log /var/log/squid/access.log squid
+# Fields, in order: unix timestamp, session, method, squid result/HTTP status,
+# bytes to the client, destination host:port. The session is the proxy-auth
+# username minted by session-proxy-identity below; the password is never a field.
+# %>rd:%>rP is host:port only. The default squid format logs %ru, the whole
+# request URI, so a plaintext GET to an allowlisted host writes the path (and,
+# without strip_query_terms, the query) into the log - private doc ids, search
+# terms, tokens. Exercised by terraform/modules/vm/tests/squid-access-log.sh.
+logformat audit %ts.%03tu %ul %rm %Ss/%03>Hs %<st %>rd:%>rP
+access_log /var/log/squid/access.log audit
 SQUID
 
 cat >/usr/local/sbin/session-proxy-identity <<'IDENTITY'

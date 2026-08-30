@@ -2,9 +2,12 @@
   "name": "agentassembly",
   "version": "0.0.0",
   "private": true,
-  "workspaces": ["cli", "web", "supabase/tests/auth"],
+  "workspaces": ["cli", "web", "supabase/tests/auth", "supabase/tests/db"],
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^9.6.1",
