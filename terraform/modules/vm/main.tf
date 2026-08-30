@@ -98,13 +98,9 @@ resource "aws_launch_template" "vm" {
   vpc_security_group_ids               = [aws_security_group.vm.id]
 
   # Readable from IMDS by anything on the box — never put secrets here.
-  # The header below carries the shebang and every terraform value, so user-data.sh
-  # stays a plain shell script rather than a template that has to escape every ${}.
-  user_data = base64encode(join("\n", [
-    "#!/bin/bash",
-    "agentjira_supabase_host='${var.agentjira_supabase_host}'",
-    file("${path.module}/user-data.sh"),
-  ]))
+  user_data = base64encode(join("\n", concat(local.user_data_header, [
+    for part in local.user_data_parts : file("${path.module}/user-data/${part}")
+  ])))
 
   iam_instance_profile {
     arn = aws_iam_instance_profile.vm.arn

@@ -8,7 +8,8 @@ Type=oneshot
 User=loop
 Group=loop
 WorkingDirectory=/opt/agentassembly/supervisor
-# Written at boot by user-data.sh in this directory, which also installs this unit.
+# Written at boot by user-data/60-loop-env.sh in this directory, which also installs
+# this unit (user-data/70-supervisor-unit.sh).
 EnvironmentFile=/etc/agentassembly/loop.env
 ExecStart=/usr/bin/env npm start
 # A drain runs for hours; 1d is a stale-run backstop, not an expected duration.
