@@ -2,7 +2,13 @@ name: backend-ci
 
 on:
   push:
+    paths-ignore:
+      - 'terraform/**'
+      - '**.md'
   pull_request:
+    paths-ignore:
+      - 'terraform/**'
+      - '**.md'
 
 jobs:
   db:
@@ -31,8 +37,11 @@ jobs:
       - name: Run pgTAP database tests
         run: supabase test db
 
-      - name: Install auth test deps
+      - name: Install test deps
         run: npm ci
+
+      - name: Run DB tests
+        run: npm test -w agentassembly-db-tests
 
       - name: Run auth policy tests
         run: |

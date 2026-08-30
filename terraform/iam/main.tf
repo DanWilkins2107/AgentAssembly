@@ -28,8 +28,8 @@ data "aws_iam_policy_document" "ci_plan_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "repo:${var.repo_owner}/${var.repo_name}:pull_request",
-        "repo:${var.repo_owner}/${var.repo_name}:ref:refs/heads/main",
+        "repo:${local.repo_owner}/${local.repo_name}:pull_request",
+        "repo:${local.repo_owner}/${local.repo_name}:ref:refs/heads/main",
       ]
     }
   }
@@ -54,17 +54,9 @@ data "aws_iam_policy_document" "ci_apply_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.repo_owner}/${var.repo_name}:environment:deploy"]
+      values   = ["repo:${local.repo_owner}/${local.repo_name}:environment:deploy"]
     }
   }
-}
-
-module "names" {
-  source = "../modules/names"
-}
-
-locals {
-  name_prefix = module.names.prefix
 }
 
 data "aws_iam_policy_document" "state_access" {
@@ -86,7 +78,7 @@ data "aws_iam_policy_document" "state_access" {
     sid       = "StateLock"
     effect    = "Allow"
     actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
-    resources = ["arn:aws:dynamodb:${var.region}:${var.account_id}:table/${module.names.lock_table}"]
+    resources = ["arn:aws:dynamodb:${local.region}:${var.account_id}:table/${module.names.lock_table}"]
   }
 }
 
@@ -270,7 +262,7 @@ data "aws_iam_policy_document" "ci_apply" {
       "lambda:UntagResource",
       "lambda:ListTags",
     ]
-    resources = ["arn:aws:lambda:${var.region}:${var.account_id}:function:${local.name_prefix}-*"]
+    resources = ["arn:aws:lambda:${local.region}:${var.account_id}:function:${local.name_prefix}-*"]
   }
 
   statement {
@@ -289,7 +281,7 @@ data "aws_iam_policy_document" "ci_apply" {
       "events:UntagResource",
       "events:ListTagsForResource",
     ]
-    resources = ["arn:aws:events:${var.region}:${var.account_id}:rule/${local.name_prefix}-*"]
+    resources = ["arn:aws:events:${local.region}:${var.account_id}:rule/${local.name_prefix}-*"]
   }
 
   statement {
@@ -304,7 +296,7 @@ data "aws_iam_policy_document" "ci_apply" {
       "secretsmanager:TagResource",
       "secretsmanager:UntagResource",
     ]
-    resources = ["arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${local.name_prefix}-*"]
+    resources = ["arn:aws:secretsmanager:${local.region}:${var.account_id}:secret:${local.name_prefix}-*"]
   }
 
   # Bucket-level only: terraform never puts or reads the log objects themselves.
@@ -368,7 +360,7 @@ data "aws_iam_policy_document" "ci_apply" {
     sid       = "KmsAlias"
     effect    = "Allow"
     actions   = ["kms:CreateAlias", "kms:DeleteAlias"]
-    resources = ["arn:aws:kms:${var.region}:${var.account_id}:alias/${local.name_prefix}-*"]
+    resources = ["arn:aws:kms:${local.region}:${var.account_id}:alias/${local.name_prefix}-*"]
   }
 
   statement {
@@ -378,7 +370,7 @@ data "aws_iam_policy_document" "ci_apply" {
     resources = ["arn:aws:budgets::${var.account_id}:budget/${local.name_prefix}-*"]
   }
 
-  # us-east-1, not var.region: AWS Budgets only publishes to us-east-1 topics, so
+  # us-east-1, not local.region: AWS Budgets only publishes to us-east-1 topics, so
   # terraform/spend-guard.tf creates the topic behind an aliased provider.
   statement {
     sid    = "Sns"
@@ -408,7 +400,7 @@ data "aws_iam_policy_document" "ci_apply" {
     sid       = "DenySecretValue"
     effect    = "Deny"
     actions   = ["secretsmanager:GetSecretValue", "secretsmanager:PutSecretValue"]
-    resources = ["arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${local.name_prefix}-*"]
+    resources = ["arn:aws:secretsmanager:${local.region}:${var.account_id}:secret:${local.name_prefix}-*"]
   }
 
   statement {

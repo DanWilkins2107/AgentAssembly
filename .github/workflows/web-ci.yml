@@ -2,7 +2,13 @@ name: web-ci
 
 on:
   push:
+    paths-ignore:
+      - 'terraform/**'
+      - '**.md'
   pull_request:
+    paths-ignore:
+      - 'terraform/**'
+      - '**.md'
 
 jobs:
   web:

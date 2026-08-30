@@ -1,6 +1,11 @@
 # AgentAssembly
 
-Secrets & environment design: [docs/secrets.md](docs/secrets.md)
+Secrets: each file that needs one documents it —
+[`web/.env.example`](web/.env.example),
+[`supabase/functions/.env.example`](supabase/functions/.env.example),
+[`secrets/README.md`](secrets/README.md), and [`cli/README.md`](cli/README.md)
+for the CLI's environment. Real values live outside the tree; the repo holds
+placeholders only.
 
 ## Local rebuild & CI
 

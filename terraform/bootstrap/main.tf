@@ -1,7 +1,3 @@
-module "names" {
-  source = "../modules/names"
-}
-
 resource "aws_s3_bucket" "state" {
   bucket = module.names.state_bucket
 
