@@ -129,7 +129,6 @@ runcmd:
   # 0750: only the proxy user and group proxy get in. The session uid is in neither, so
   # it can neither read the audit trail of its own egress nor truncate it. Root still
   # reads it for the pre-poweroff shipper.
-  # TODO eae99053 2026-09-25: log only unreadable by the session once the boot run is non-root
   - install -d -o proxy -g proxy -m 0750 /var/log/squid
   - systemctl enable --now squid
   - npm i -g @anthropic-ai/claude-code
