@@ -1,4 +1,13 @@
 #cloud-config
+# The loop and the bwrap'd session it runs share this account. It is deliberately
+# outside group proxy: that group reads the squid credential file and access log.
+users:
+  - default
+  - name: loop
+    homedir: /home/loop
+    shell: /usr/sbin/nologin
+    lock_passwd: true
+
 package_update: true
 packages:
   - git
@@ -139,6 +148,9 @@ runcmd:
   - npm i -g /opt/agentjira/cli
   # Must stay after the apt and npm work above: that runs as root and needs open egress.
   - systemctl enable --now nftables
+  # /opt stays root-owned and read-only to loop: the session shares the account, so a
+  # writable clone would let it rewrite its own supervisor. This is what loop may write.
+  - install -d -o loop -g loop -m 0755 /var/lib/agentassembly
   - install -m 0644 /opt/agentassembly/deploy/supervisor-loop.service /etc/systemd/system/supervisor-loop.service
   - systemctl daemon-reload
   - systemctl enable supervisor-loop.service

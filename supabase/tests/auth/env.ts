@@ -1,11 +1,10 @@
 import { z } from "zod";
 
-const envSchema = z.object({
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+import { supabaseEnvSchema } from "../../env-schema.ts";
+
+export const env = supabaseEnvSchema.parse({
+  url: process.env.SUPABASE_URL,
+  anonKey: process.env.SUPABASE_ANON_KEY,
 });
 
-export type Env = z.infer<typeof envSchema>;
-
-export const env: Env = envSchema.parse(process.env);
+export const serviceRoleKey = z.string().min(1).parse(process.env.SUPABASE_SERVICE_ROLE_KEY);
