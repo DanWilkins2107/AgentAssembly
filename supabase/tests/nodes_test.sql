@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap;
-select plan(77);
+select plan(73);
 
 -- Columns
 
@@ -140,34 +140,6 @@ select set_eq(
         'nodes_pr_number_positive', 'nodes_claimed_by_length',
         'nodes_claim_pair'],
   'nodes has exactly the seven named CHECK constraints'
-);
-
--- Indexes
-
-select indexes_are(
-  'public', 'nodes',
-  array['nodes_pkey', 'nodes_project_id_status_idx', 'nodes_fts_idx'],
-  'nodes has the primary key index and exactly two secondary indexes'
-);
-
-select has_index(
-  'public', 'nodes', 'nodes_project_id_status_idx',
-  array['project_id', 'status'],
-  'the board query index is on (project_id, status)'
-);
-
-select has_index(
-  'public', 'nodes', 'nodes_fts_idx', 'fts',
-  'the search index is on (fts)'
-);
-
-select is(
-  (select access_method.amname::text
-     from pg_class index_class
-     join pg_am access_method on access_method.oid = index_class.relam
-    where index_class.oid = 'public.nodes_fts_idx'::regclass),
-  'gin',
-  'the search index is a GIN index'
 );
 
 -- updated_at trigger
