@@ -39,3 +39,49 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo ubuntu:24.04 \
             terraform/modules/vm/tests/squid-access-log.sh
+
+  plan:
+    name: Terraform - plan (root)
+    if: github.event_name == 'pull_request'
+    needs: terraform
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.CI_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Plan
+        shell: bash
+        run: |
+          terraform -chdir=terraform init -input=false
+          terraform -chdir=terraform plan -no-color -input=false -var-file=ci.tfvars 2>&1 | tee plan.txt
+
+      - name: Sticky plan comment
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          limit=60000
+          {
+            echo '### Terraform plan - root'
+            echo '```terraform'
+            head -c "$limit" plan.txt
+            echo
+            echo '```'
+            if [ "$(wc -c < plan.txt)" -gt "$limit" ]; then
+              echo "Truncated at $limit bytes; the full plan is in the job log."
+            fi
+          } > comment.md
+          gh pr comment "$PR" --body-file comment.md --edit-last --create-if-none
