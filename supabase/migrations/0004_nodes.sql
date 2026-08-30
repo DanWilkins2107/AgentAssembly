@@ -5,8 +5,6 @@ create table public.nodes (
     constraint nodes_title_length check (char_length(title) between 1 and 300),
   body text not null default ''
     constraint nodes_body_length check (char_length(body) <= 20000),
-  -- The node_status enum, never text: an unknown status must fail to insert.
-  -- No default: every caller states the status it means.
   status public.node_status not null,
   is_vision boolean not null default false,
   spec text
@@ -14,8 +12,6 @@ create table public.nodes (
   invalidation_reason text
     constraint nodes_invalidation_reason_length
       check (char_length(invalidation_reason) <= 5000),
-  pr_url text
-    constraint nodes_pr_url_length check (char_length(pr_url) <= 2000),
   pr_number integer
     constraint nodes_pr_number_positive check (pr_number > 0),
   claimed_by text
@@ -31,10 +27,8 @@ create table public.nodes (
       coalesce(spec, '') || ' ' || coalesce(invalidation_reason, '')
     )
   ) stored,
-  -- A claim is who plus when, and a raised PR is url plus number: half of
-  -- either pair is a bug, so both-or-neither.
-  constraint nodes_claim_pair check (num_nonnulls(claimed_by, claimed_at) <> 1),
-  constraint nodes_pr_pair check (num_nonnulls(pr_url, pr_number) <> 1)
+  -- A claim is who plus when: half of the pair is a bug, so both-or-neither.
+  constraint nodes_claim_pair check (num_nonnulls(claimed_by, claimed_at) <> 1)
 );
 
 create index nodes_project_id_status_idx on public.nodes (project_id, status);

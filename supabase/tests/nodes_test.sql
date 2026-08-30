@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap;
-select plan(82);
+select plan(77);
 
 -- Columns
 
@@ -12,10 +12,10 @@ select has_table('public', 'nodes', 'table public.nodes exists');
 select columns_are(
   'public', 'nodes',
   array['id', 'project_id', 'title', 'body', 'status', 'is_vision',
-        'spec', 'invalidation_reason', 'pr_url', 'pr_number',
+        'spec', 'invalidation_reason', 'pr_number',
         'claimed_by', 'claimed_at', 'created_by', 'created_at',
         'updated_at', 'fts'],
-  'nodes has exactly the sixteen columns and no others'
+  'nodes has exactly the fifteen columns and no others'
 );
 
 select col_type_is('public', 'nodes', 'id',                 'uuid',                     'id is uuid');
@@ -25,7 +25,6 @@ select col_type_is('public', 'nodes', 'body',               'text',             
 select col_type_is('public', 'nodes', 'is_vision',          'boolean',                  'is_vision is boolean');
 select col_type_is('public', 'nodes', 'spec',               'text',                     'spec is text');
 select col_type_is('public', 'nodes', 'invalidation_reason','text',                     'invalidation_reason is text');
-select col_type_is('public', 'nodes', 'pr_url',             'text',                     'pr_url is text');
 select col_type_is('public', 'nodes', 'pr_number',          'integer',                  'pr_number is integer');
 select col_type_is('public', 'nodes', 'claimed_by',         'text',                     'claimed_by is text');
 select col_type_is('public', 'nodes', 'claimed_at',         'timestamp with time zone', 'claimed_at is timestamptz');
@@ -58,7 +57,6 @@ select col_not_null('public', 'nodes', 'updated_at',         'updated_at is NOT 
 
 select col_is_null('public', 'nodes', 'spec',                'spec is nullable: most nodes never get one');
 select col_is_null('public', 'nodes', 'invalidation_reason', 'invalidation_reason is nullable and unconditioned: invalidating without a reason is legal');
-select col_is_null('public', 'nodes', 'pr_url',              'pr_url is nullable: a node need not have a PR');
 select col_is_null('public', 'nodes', 'pr_number',           'pr_number is nullable: a node need not have a PR');
 select col_is_null('public', 'nodes', 'claimed_by',          'claimed_by is nullable: null means unclaimed');
 select col_is_null('public', 'nodes', 'claimed_at',          'claimed_at is nullable: null means unclaimed');
@@ -138,10 +136,10 @@ select set_eq(
   $$ select conname::text from pg_constraint
       where conrelid = 'public.nodes'::regclass and contype = 'c' $$,
   array['nodes_title_length', 'nodes_body_length', 'nodes_spec_length',
-        'nodes_invalidation_reason_length', 'nodes_pr_url_length',
+        'nodes_invalidation_reason_length',
         'nodes_pr_number_positive', 'nodes_claimed_by_length',
-        'nodes_claim_pair', 'nodes_pr_pair'],
-  'nodes has exactly the nine named CHECK constraints'
+        'nodes_claim_pair'],
+  'nodes has exactly the seven named CHECK constraints'
 );
 
 -- Indexes
@@ -233,9 +231,9 @@ values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000
 
 select row_eq(
   $$ select body, is_vision, spec, invalidation_reason,
-            pr_url, pr_number, claimed_by, claimed_at
+            pr_number, claimed_by, claimed_at
        from public.nodes where id = '00000000-0000-0000-0000-0000000000c1' $$,
-  row(''::text, false, null::text, null::text, null::text, null::integer,
+  row(''::text, false, null::text, null::text, null::integer,
       null::text, null::timestamptz),
   'a minimal node starts unclaimed, unlinked and not a vision'
 );
@@ -277,18 +275,9 @@ select throws_ok(
 );
 
 select throws_ok(
-  $$ insert into public.nodes (project_id, title, status, created_by, pr_url, pr_number)
-     values ('00000000-0000-0000-0000-0000000000b1', 'Long PR url',
-             'pr_raised', '00000000-0000-0000-0000-0000000000a1', repeat('x', 2001), 1) $$,
-  '23514',
-  null,
-  'a pr_url longer than 2000 characters is rejected'
-);
-
-select throws_ok(
-  $$ insert into public.nodes (project_id, title, status, created_by, pr_url, pr_number)
+  $$ insert into public.nodes (project_id, title, status, created_by, pr_number)
      values ('00000000-0000-0000-0000-0000000000b1', 'Zero PR number',
-             'pr_raised', '00000000-0000-0000-0000-0000000000a1', 'https://example.com/pr', 0) $$,
+             'pr_raised', '00000000-0000-0000-0000-0000000000a1', 0) $$,
   '23514',
   null,
   'a pr_number of zero is rejected: PR numbers start at one'
@@ -355,29 +344,11 @@ select lives_ok(
   'a claim with both halves is accepted'
 );
 
-select throws_ok(
-  $$ insert into public.nodes (project_id, title, status, created_by, pr_url)
-     values ('00000000-0000-0000-0000-0000000000b1', 'Half PR',
-             'pr_raised', '00000000-0000-0000-0000-0000000000a1', 'https://example.com/pr') $$,
-  '23514',
-  null,
-  'a pr_url without a pr_number is rejected'
-);
-
-select throws_ok(
-  $$ insert into public.nodes (project_id, title, status, created_by, pr_number)
-     values ('00000000-0000-0000-0000-0000000000b1', 'Half PR',
-             'pr_raised', '00000000-0000-0000-0000-0000000000a1', 7) $$,
-  '23514',
-  null,
-  'a pr_number without a pr_url is rejected'
-);
-
 select lives_ok(
-  $$ insert into public.nodes (project_id, title, status, created_by, pr_url, pr_number)
-     values ('00000000-0000-0000-0000-0000000000b1', 'Whole PR',
-             'pr_raised', '00000000-0000-0000-0000-0000000000a1', 'https://example.com/pr', 7) $$,
-  'a PR with both halves is accepted'
+  $$ insert into public.nodes (project_id, title, status, created_by, pr_number)
+     values ('00000000-0000-0000-0000-0000000000b1', 'Linked PR',
+             'pr_raised', '00000000-0000-0000-0000-0000000000a1', 7) $$,
+  'a node linked to a PR by number is accepted'
 );
 
 select throws_ok(
