@@ -1,3 +1,4 @@
+// fallow-ignore-file code-duplication -- this env schema tokenizes the same as the unrelated session schema in cli/src/session.ts; coincidence, not shared code.
 import { execFileSync } from "node:child_process";
 import { z } from "zod";
 

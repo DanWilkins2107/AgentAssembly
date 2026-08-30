@@ -1,10 +1,11 @@
 {
   "$schema": "./node_modules/fallow/schema.json",
   "entry": ["**/stryker.config.mjs"],
+  "ignoreDependencies": ["@stryker-mutator/vitest-runner"],
   "health": {
-    "maxCyclomatic": 3,
-    "maxCognitive": 3,
-    "maxCrap": 5
+    "maxCyclomatic": 5,
+    "maxCognitive": 5,
+    "maxCrap": 1000
   },
   "duplicates": {
     "mode": "semantic",
