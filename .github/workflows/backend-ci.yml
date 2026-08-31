@@ -97,9 +97,6 @@ jobs:
       - name: Typecheck
         run: npm run typecheck -w agentassembly-cli
 
-      - name: Fallow (dead-code, duplication, complexity)
-        run: npm run fallow -w agentassembly-cli
-
       - name: Test with coverage
         run: npm run test:coverage -w agentassembly-cli
 

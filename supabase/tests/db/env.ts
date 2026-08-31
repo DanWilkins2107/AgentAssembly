@@ -1,11 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { z } from "zod";
 
+const required = z.string().min(1);
+
 const envSchema = z.object({
-  DB_URL: z.string().min(1),
+  DB_URL: required,
   API_URL: z.string().url(),
-  ANON_KEY: z.string().min(1),
-  SERVICE_ROLE_KEY: z.string().min(1),
+  ANON_KEY: required,
+  SERVICE_ROLE_KEY: required,
 });
 
 export type Env = z.infer<typeof envSchema>;
