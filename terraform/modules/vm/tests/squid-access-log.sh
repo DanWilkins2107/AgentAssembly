@@ -1,12 +1,12 @@
 #!/bin/bash
-# Boots the real squid.conf out of terraform/modules/vm/user-data.yaml.tftpl and
-# proves the access log records host:port and never path, query or credentials.
+# Runs the real boot phase terraform/modules/vm/user-data/squid.sh and proves the
+# access log it configures records host:port and never path, query or credentials.
 # Destructive (installs packages, edits /etc/hosts) - run it in a throwaway container:
 #   docker run --rm -v "$PWD:/repo" -w /repo ubuntu:24.04 \
 #     terraform/modules/vm/tests/squid-access-log.sh
 set -euo pipefail
 
-tftpl=terraform/modules/vm/user-data.yaml.tftpl
+squid_phase=terraform/modules/vm/user-data/squid.sh
 secret=SUPERSECRETTOKEN
 session=sess-test_1
 log=/var/log/squid/access.log
@@ -19,24 +19,16 @@ fail() {
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq squid python3-yaml curl openssl >/dev/null
+apt-get install -y -qq squid python3 curl openssl >/dev/null
 
-extract_file() {
-  python3 -c '
-import sys, yaml
-doc = yaml.safe_load(open(sys.argv[1]))
-[f] = [f for f in doc["write_files"] if f["path"] == sys.argv[2]]
-sys.stdout.write(f["content"])
-' "$work/user-data.yaml" "$1"
-}
+# The phase writes /etc/squid/squid.conf, /etc/squid/proxy-users and
+# session-proxy-identity exactly as the boot does; only the terraform-supplied
+# allowlist host is stubbed, which locals.tf exports before entry.sh runs the phases.
+agentjira_supabase_host=supabase.test
+# shellcheck source=terraform/modules/vm/user-data/squid.sh
+. "$squid_phase"
 
-sed 's/${agentjira_supabase_host}/supabase.test/' "$tftpl" >"$work/user-data.yaml"
-extract_file /etc/squid/squid.conf >"$work/squid.conf"
-extract_file /usr/local/sbin/session-proxy-identity >/usr/local/sbin/session-proxy-identity
-chmod 0700 /usr/local/sbin/session-proxy-identity
-
-install -o root -g proxy -m 0640 /dev/null /etc/squid/proxy-users
-# The same line the VM runs; the read/truncate assertions below depend on it.
+# The same line packages.sh runs; the read/truncate assertions below depend on it.
 install -d -o proxy -g proxy -m 0750 /var/log/squid
 
 eval "$(session-proxy-identity "$session" | sed 's/^/export /')"
@@ -49,7 +41,7 @@ python3 -m http.server 80 --bind 127.0.0.1 --directory "$work" &>/dev/null &
 origin_pid=$!
 trap 'kill "$origin_pid" 2>/dev/null || true' EXIT
 
-squid -f "$work/squid.conf"
+squid
 for _ in $(seq 30); do
   if (exec 3<>/dev/tcp/127.0.0.1/3128) 2>/dev/null; then break; fi
   sleep 1
@@ -60,7 +52,7 @@ curl -sS -o /dev/null -x "$http_proxy" "http://blocked.example/secret?token=$sec
 curl -sS -o /dev/null -x http://127.0.0.1:3128 "http://github.com/index.html?token=$secret" || true
 
 # SIGINT is squid's immediate shutdown; it flushes the log daemon on the way out.
-squid -f "$work/squid.conf" -k interrupt
+squid -k interrupt
 for _ in $(seq 30); do
   if [ ! -e /run/squid.pid ]; then break; fi
   sleep 1
