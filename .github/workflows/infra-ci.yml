@@ -42,7 +42,7 @@ jobs:
 
   plan:
     name: Terraform - plan (root)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && vars.CI_PLAN_ROLE_ARN != ''
     needs: terraform
     runs-on: ubuntu-latest
     permissions:
@@ -59,7 +59,8 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.CI_PLAN_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          # Pinned in terraform/locals.tf and terraform/backend.tf; rename there -> rename here.
+          aws-region: eu-west-2
 
       - name: Plan
         shell: bash
