@@ -13,11 +13,12 @@ export const CLAUDE_ARGS = [
 ];
 
 export function parseNodeIdArg(argv: string[], printUsage: () => void): string {
-  if (argv.length === 0 || argv[0] === "-h" || argv[0] === "--help") {
+  const [nodeId] = argv;
+  if (nodeId === undefined || nodeId === "-h" || nodeId === "--help") {
     printUsage();
-    process.exit(argv.length === 0 ? USAGE_EXIT : 0);
+    process.exit(nodeId === undefined ? USAGE_EXIT : 0);
   }
-  return argv[0];
+  return nodeId;
 }
 
 export function makeLog(prefix: string): (...args: string[]) => void {

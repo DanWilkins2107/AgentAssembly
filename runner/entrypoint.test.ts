@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { spawn } from "node:child_process";
-import { makeLog, emitResult, preflight } from "./entrypoint";
+import {
+  CLAUDE_ARGS,
+  USAGE_EXIT,
+  parseNodeIdArg,
+  makeLog,
+  emitResult,
+  preflight,
+} from "./entrypoint";
 import { fakeChild } from "../test-helpers/fake-child";
 import type { PipedChild } from "./session";
 
@@ -17,6 +24,34 @@ function runPreflight(drive: (child: PipedChild) => void) {
   drive(child);
   return result;
 }
+
+describe("parseNodeIdArg", () => {
+  function stubExit() {
+    return vi.spyOn(process, "exit").mockImplementation((() => {}) as never);
+  }
+
+  it("returns the first argument", () => {
+    const printUsage = vi.fn();
+    expect(parseNodeIdArg(["n1"], printUsage)).toBe("n1");
+    expect(printUsage).not.toHaveBeenCalled();
+  });
+
+  it("prints usage and exits 2 with no arguments", () => {
+    const exit = stubExit();
+    const printUsage = vi.fn();
+    parseNodeIdArg([], printUsage);
+    expect(printUsage).toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(2);
+  });
+
+  it.each(["-h", "--help"])("prints usage and exits 0 for %s", (flag) => {
+    const exit = stubExit();
+    const printUsage = vi.fn();
+    parseNodeIdArg([flag], printUsage);
+    expect(printUsage).toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+});
 
 describe("makeLog", () => {
   it("writes prefixed, space-joined lines to stderr", () => {
@@ -99,5 +134,22 @@ describe("preflight", () => {
       ok: false,
       detail: "`aj whoami` returned unparseable output",
     });
+  });
+});
+
+describe("constants", () => {
+  it("exits 2 on a usage error", () => {
+    expect(USAGE_EXIT).toBe(2);
+  });
+
+  it("drives claude headless, printing one json envelope per run", () => {
+    expect(CLAUDE_ARGS).toEqual([
+      "--print",
+      "--permission-mode",
+      "auto",
+      "--no-session-persistence",
+      "--output-format",
+      "json",
+    ]);
   });
 });
