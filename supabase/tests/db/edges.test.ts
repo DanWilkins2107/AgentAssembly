@@ -37,18 +37,21 @@ async function seedGraph(sql: Client): Promise<void> {
   );
 }
 
+const VALID_EDGE: Required<EdgeInsert> = {
+  projectId: PROJECT_ID,
+  sourceId: SOURCE_ID,
+  targetId: TARGET_ID,
+  type: "subtask",
+  createdBy: USER_ID,
+};
+
 function insertEdge(sql: Client, edge: EdgeInsert = {}): Promise<QueryResult<EdgeRow>> {
+  const { projectId, sourceId, targetId, type, createdBy } = { ...VALID_EDGE, ...edge };
   return sql.query<EdgeRow>(
     `insert into public.edges (project_id, source_id, target_id, type, created_by)
      values ($1, $2, $3, $4, $5)
      returning id, removed_at, created_at`,
-    [
-      edge.projectId ?? PROJECT_ID,
-      edge.sourceId ?? SOURCE_ID,
-      edge.targetId ?? TARGET_ID,
-      edge.type ?? "subtask",
-      edge.createdBy ?? USER_ID,
-    ],
+    [projectId, sourceId, targetId, type, createdBy],
   );
 }
 

@@ -5,7 +5,7 @@
   "health": {
     "maxCyclomatic": 5,
     "maxCognitive": 5,
-    "maxCrap": 1000
+    "maxCrap": 30
   },
   "duplicates": {
     "mode": "semantic",
