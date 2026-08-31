@@ -50,6 +50,16 @@ jobs:
       id-token: write
       pull-requests: write
     steps:
+      - name: Require CI_PLAN_ROLE_ARN
+        shell: bash
+        env:
+          ROLE_ARN: ${{ vars.CI_PLAN_ROLE_ARN }}
+        run: |
+          if [ -z "$ROLE_ARN" ]; then
+            echo "::error::Repository variable CI_PLAN_ROLE_ARN is unset. Set it with: gh variable set CI_PLAN_ROLE_ARN --body \"\$(terraform -chdir=terraform/iam output -raw ci_plan_role_arn)\""
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
