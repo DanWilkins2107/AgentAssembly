@@ -1,0 +1,23 @@
+{
+  "name": "@loopcliharness/runner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Single-session runner: runs one AgentJira node in one fresh headless Claude Code session.",
+  "type": "module",
+  "scripts": {
+    "start": "tsx run-task.ts",
+    "judge": "tsx run-judge.ts",
+    "test": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format:check": "prettier --check \"**/*.ts\"",
+    "format": "prettier --write \"**/*.ts\"",
+    "mutation": "stryker run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}
