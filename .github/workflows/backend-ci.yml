@@ -4,12 +4,10 @@ on:
   push:
     paths-ignore:
       - 'terraform/**'
-      - 'docs/**'
       - '**.md'
   pull_request:
     paths-ignore:
       - 'terraform/**'
-      - 'docs/**'
       - '**.md'
 
 jobs:

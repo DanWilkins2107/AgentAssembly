@@ -1,4 +1,7 @@
+module "names" {
+  source = "../modules/names"
+}
+
 locals {
-  region      = "eu-west-2"
-  name_prefix = "agentassembly"
+  region = "eu-west-2"
 }
