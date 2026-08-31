@@ -154,10 +154,13 @@ data "aws_iam_policy_document" "kms_common" {
 # refresh hits AccessDenied; ci_apply sources it too because apply refreshes first.
 data "aws_iam_policy_document" "root_read" {
   statement {
+    # GetRolePolicy is for the vm-egress-log-write inline policy added by
+    # terraform/egress-log.tf; the rest cover the vm role and its SSM attachment.
     sid    = "IamRoleRead"
     effect = "Allow"
     actions = [
       "iam:GetRole",
+      "iam:GetRolePolicy",
       "iam:ListRoleTags",
       "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
