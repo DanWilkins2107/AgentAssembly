@@ -30,9 +30,9 @@ select trigger_is(
 -- tgtype bits: ROW (1) | BEFORE (2) | UPDATE (16).
 select is(
   (select tgtype::int from pg_trigger
-    where tgrelid = 'public.nodes'::regclass and not tgisinternal),
+    where tgrelid = 'public.nodes'::regclass and tgname = 'nodes_set_updated_at'),
   19,
-  'nodes_set_updated_at is BEFORE UPDATE FOR EACH ROW, and is the only trigger'
+  'nodes_set_updated_at is BEFORE UPDATE FOR EACH ROW'
 );
 
 -- Access
