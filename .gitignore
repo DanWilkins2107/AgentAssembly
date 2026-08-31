@@ -29,3 +29,5 @@ supabase/.branches/
 .vite/
 coverage/
 *.tsbuildinfo
+.stryker-tmp/
+stryker-setup-*.js
