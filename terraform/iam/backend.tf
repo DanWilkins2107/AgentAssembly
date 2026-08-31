@@ -1,6 +1,7 @@
 terraform {
-  # Backend HCL is parsed pre-eval, so it can't reference local.name_prefix.
-  # These literals must stay in sync with name_prefix in locals.tf ("agentassembly").
+  # Backend HCL is parsed pre-eval, so it can't reference a module output. These
+  # literals must stay in sync with terraform/modules/names, which owns every other
+  # copy of these names. Rename there -> rename here.
   backend "s3" {
     bucket         = "agentassembly-tfstate"
     dynamodb_table = "agentassembly-tflock"
