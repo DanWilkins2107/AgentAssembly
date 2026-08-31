@@ -1,6 +1,7 @@
 import type { Client, QueryResult } from "pg";
 import { describe, expect, it } from "vitest";
 import { withRollback } from "./harness.ts";
+import { seedNodes, seedProject, seedUsers } from "./seed.ts";
 
 const USER_ID = "00000000-0000-0000-0000-0000000000e1";
 const PROJECT_ID = "00000000-0000-0000-0000-0000000000e2";
@@ -19,22 +20,9 @@ type EdgeInsert = {
 type EdgeRow = { id: string; removed_at: Date | null; created_at: Date };
 
 async function seedGraph(sql: Client): Promise<void> {
-  await sql.query(
-    `insert into auth.users
-       (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
-     values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-             'edges-test@example.com', '', now(), now())`,
-    [USER_ID],
-  );
-  await sql.query(
-    `insert into public.projects (id, name, created_by) values ($1, 'Edges test', $2)`,
-    [PROJECT_ID, USER_ID],
-  );
-  await sql.query(
-    `insert into public.nodes (id, project_id, title, status, created_by)
-     select unnest($1::uuid[]), $2, 'Edge endpoint', 'human_braindump_needed', $3`,
-    [[SOURCE_ID, TARGET_ID], PROJECT_ID, USER_ID],
-  );
+  await seedUsers(sql, [USER_ID]);
+  await seedProject(sql, PROJECT_ID, USER_ID);
+  await seedNodes(sql, [SOURCE_ID, TARGET_ID], PROJECT_ID, USER_ID);
 }
 
 const VALID_EDGE: Required<EdgeInsert> = {

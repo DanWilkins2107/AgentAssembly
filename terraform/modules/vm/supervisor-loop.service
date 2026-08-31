@@ -8,6 +8,9 @@ Type=oneshot
 User=loop
 Group=loop
 WorkingDirectory=/opt/agentassembly/supervisor
+# Written at boot by user-data/loop-env.sh in this directory, which also installs
+# this unit (user-data/supervisor-unit.sh).
+EnvironmentFile=/etc/agentassembly/loop.env
 # noble restricts unprivileged user namespaces, so bwrap can be unusable for the
 # whole run. User=loop makes this probe hit that restriction; as root it would
 # pass and prove nothing. An empty sandbox root has no /bin/true, hence the bind.

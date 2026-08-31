@@ -1,6 +1,7 @@
 import type { Client, QueryResult } from "pg";
 import { describe, expect, it } from "vitest";
 import { withRollback } from "./harness.ts";
+import { insertRow, seedProject, seedUsers } from "./seed.ts";
 
 const USER_ID = "00000000-0000-0000-0000-0000000000a1";
 const PROJECT_ID = "00000000-0000-0000-0000-0000000000b1";
@@ -13,28 +14,13 @@ const minimalNode = {
 };
 
 function insertNode(sql: Client, columns: Record<string, unknown>): Promise<QueryResult> {
-  const names = Object.keys(columns);
-  const placeholders = names.map((_, index) => `$${index + 1}`);
-  return sql.query(
-    `insert into public.nodes (${names.join(", ")}) values (${placeholders.join(", ")})`,
-    Object.values(columns),
-  );
+  return insertRow(sql, "public.nodes", columns);
 }
 
 function withProject(run: (sql: Client) => Promise<void>): Promise<void> {
   return withRollback(async (sql) => {
-    await sql.query(
-      `insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
-                               created_at, updated_at)
-       values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-               'nodes-constraints-test@example.com', '', now(), now())`,
-      [USER_ID],
-    );
-    await sql.query(`insert into public.projects (id, name, created_by) values ($1, $2, $3)`, [
-      PROJECT_ID,
-      "Nodes test",
-      USER_ID,
-    ]);
+    await seedUsers(sql, [USER_ID]);
+    await seedProject(sql, PROJECT_ID, USER_ID);
     await run(sql);
   });
 }
