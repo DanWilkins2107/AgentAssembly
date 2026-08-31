@@ -19,7 +19,7 @@
     "@types/node": "^22.15.0",
     "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.37.0",
-    "fallow": "3.9.1",
+    "fallow": "3.21.0",
     "prettier": "^3.6.2",
     "tsx": "^4.7.0",
     "typescript": "^5.9.3",
