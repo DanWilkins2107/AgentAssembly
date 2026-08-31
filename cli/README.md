@@ -32,5 +32,8 @@ import { connect } from "agentassembly-cli/client";
 ```
 npm run typecheck   # tsc --noEmit, includes tests
 npm run build       # tsc -> dist/
-npm test            # vitest (Linux only — the suite throws on other platforms)
+npm test            # vitest with coverage at 100% (Linux only — the suite throws on other platforms)
+npm run mutation    # stryker
+npm run lint        # eslint
+npm run format:check # prettier --check
 ```

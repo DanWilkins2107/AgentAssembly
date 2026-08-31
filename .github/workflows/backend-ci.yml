@@ -4,12 +4,10 @@ on:
   push:
     paths-ignore:
       - 'terraform/**'
-      - 'docs/**'
       - '**.md'
   pull_request:
     paths-ignore:
       - 'terraform/**'
-      - 'docs/**'
       - '**.md'
 
 jobs:
@@ -82,7 +80,7 @@ jobs:
           fi
 
   cli:
-    name: CLI - typecheck & test coverage
+    name: CLI - typecheck, lint & test coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -99,11 +97,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck -w agentassembly-cli
 
-      - name: Fallow (dead-code, duplication, complexity)
-        run: npm run fallow -w agentassembly-cli
+      - name: Lint
+        run: npm run lint -w agentassembly-cli
+
+      - name: Format check
+        run: npm run format:check -w agentassembly-cli
 
       - name: Test with coverage
-        run: npm run test:coverage -w agentassembly-cli
+        run: npm run test -w agentassembly-cli
 
   cli-mutation:
     name: CLI - mutation testing
@@ -122,4 +123,4 @@ jobs:
         run: npm ci
 
       - name: Mutation testing
-        run: npm run test:mutation -w agentassembly-cli
+        run: npm run mutation -w agentassembly-cli

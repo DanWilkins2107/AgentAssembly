@@ -1,0 +1,32 @@
+[Unit]
+Description=AgentAssembly supervisor loop (powers off on exit)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=loop
+Group=loop
+WorkingDirectory=/opt/agentassembly/supervisor
+# Written at boot by user-data/loop-env.sh in this directory, which also installs
+# this unit (user-data/supervisor-unit.sh).
+EnvironmentFile=/etc/agentassembly/loop.env
+# noble restricts unprivileged user namespaces, so bwrap can be unusable for the
+# whole run. User=loop makes this probe hit that restriction; as root it would
+# pass and prove nothing. An empty sandbox root has no /bin/true, hence the bind.
+ExecStartPre=/usr/bin/bwrap --unshare-user --ro-bind / / /bin/true
+ExecStart=/usr/bin/env npm start
+# A drain runs for hours; 1d is a stale-run backstop, not an expected duration.
+TimeoutStartSec=1d
+# The poweroff below deletes the root volume and the journal with it, and it also
+# fires when ExecStartPre fails. One line to /dev/console first (root-only, hence
+# "+"): EC2 console output is the only record that outlives the box.
+ExecStopPost=+/bin/sh -c 'test "$$SERVICE_RESULT" = success || echo "supervisor-loop.service failed ($$SERVICE_RESULT); check the bwrap --unshare-user ExecStartPre probe" >/dev/console'
+# The launch template terminates on instance-initiated shutdown and deletes the root
+# volume, so this destroys the box — there is no inspection window for a failed run.
+# "+": run as root regardless of User=. polkit refuses a poweroff from an
+# unprivileged unit, and without it the box never self-terminates.
+ExecStopPost=+/usr/bin/systemctl poweroff
+
+[Install]
+WantedBy=multi-user.target

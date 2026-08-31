@@ -28,3 +28,14 @@ jobs:
             terraform -chdir="$dir" init -backend=false
             terraform -chdir="$dir" validate
           done
+
+  squid-access-log:
+    name: Squid - access-log redaction & log-dir perms
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Boot the rendered squid.conf and assert the log is redacted
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo ubuntu:24.04 \
+            terraform/modules/vm/tests/squid-access-log.sh

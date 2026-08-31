@@ -20,12 +20,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:mutation": "stryker run",
+    "test": "vitest run --coverage",
+    "mutation": "stryker run",
     "lint": "eslint .",
-    "format:check": "prettier --check .",
-    "fallow": "fallow"
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",
