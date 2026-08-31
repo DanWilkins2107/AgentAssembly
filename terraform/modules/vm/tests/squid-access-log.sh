@@ -23,7 +23,7 @@ apt-get install -y -qq squid python3 curl openssl >/dev/null
 
 # The phase writes /etc/squid/squid.conf, /etc/squid/proxy-users and
 # session-proxy-identity exactly as the boot does; only the terraform-supplied
-# allowlist host is stubbed, which locals.tf renders into the user-data header.
+# allowlist host is stubbed, which locals.tf exports before entry.sh runs the phases.
 agentjira_supabase_host=supabase.test
 # shellcheck source=terraform/modules/vm/user-data/20-squid.sh
 . "$squid_phase"
