@@ -1,0 +1,80 @@
+name: node-ci
+
+on:
+  push:
+    paths-ignore:
+      - 'terraform/**'
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - 'terraform/**'
+      - '**.md'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Node - typecheck & test coverage
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [agentassembly-cli]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - run: npm run typecheck -w ${{ matrix.package }}
+
+      - run: npm test -w ${{ matrix.package }}
+
+  lint:
+    name: Node - lint & format
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [agentassembly-cli]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - run: npm run lint -w ${{ matrix.package }}
+
+      - run: npm run format:check -w ${{ matrix.package }}
+
+  mutation:
+    name: Node - mutation testing
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [agentassembly-cli]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - run: npm run mutation -w ${{ matrix.package }}
