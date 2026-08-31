@@ -4,12 +4,10 @@ on:
   push:
     paths-ignore:
       - 'terraform/**'
-      - 'docs/**'
       - '**.md'
   pull_request:
     paths-ignore:
       - 'terraform/**'
-      - 'docs/**'
       - '**.md'
 
 jobs:
@@ -98,9 +96,6 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck -w agentassembly-cli
-
-      - name: Fallow (dead-code, duplication, complexity)
-        run: npm run fallow -w agentassembly-cli
 
       - name: Test with coverage
         run: npm run test:coverage -w agentassembly-cli

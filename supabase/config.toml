@@ -6,8 +6,9 @@
 # automatically by a git push or by `supabase db push` — config is synced by its
 # own command.
 #
-# Auth is deliberately locked down here: see docs/identity-model.md for the
-# identity contract these settings enforce.
+# Auth is deliberately locked down here: accounts are operator-provisioned and
+# there is no self-signup path, so membership is never a side effect of signing
+# up and knowing an email address gets an attacker nothing.
 
 project_id = "agentassembly"
 

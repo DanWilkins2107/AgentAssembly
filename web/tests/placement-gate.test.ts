@@ -12,27 +12,32 @@ const LEAF = new RegExp(
 const companionOf = (base: string) =>
   new RegExp(String.raw`^(?:${base}\.${EXT}|__snapshots__/${base}\.${SNAP})$`);
 
+type Placement = { base: string; rest: string[] };
+
+const opensFolder = (parts: string[], dir: string) => {
+  const [top = "", name = ""] = parts;
+  return parts.length > 2 && top === dir && IS_NAME.test(name);
+};
+
+const peelPage = (parts: string[]): Placement =>
+  opensFolder(parts, "pages")
+    ? { base: "page", rest: parts.slice(2) }
+    : { base: "", rest: parts };
+
+const peelElements = ({ base, rest }: Placement): Placement => {
+  const [, name = ""] = rest;
+  if (!opensFolder(rest, "elements") || name === "__snapshots__")
+    return { base, rest };
+  return peelElements({ base: name, rest: rest.slice(2) });
+};
+
 const isPlaced = (path: string) => {
   const parts = path.split("/");
   if (parts.length === 1) return ROOT_FILES.includes(path);
 
-  let base = "";
-  const [top = "", page = ""] = parts;
-  if (top === "pages" && parts.length > 2 && IS_NAME.test(page)) {
-    base = "page";
-    parts.splice(0, 2);
-  }
-
-  while (parts.length > 2) {
-    const [dir = "", name = ""] = parts;
-    if (dir !== "elements" || name === "__snapshots__" || !IS_NAME.test(name))
-      break;
-    base = name;
-    parts.splice(0, 2);
-  }
-
-  const rest = parts.join("/");
-  return LEAF.test(rest) || (base !== "" && companionOf(base).test(rest));
+  const { base, rest } = peelElements(peelPage(parts));
+  const tail = rest.join("/");
+  return LEAF.test(tail) || (base !== "" && companionOf(base).test(tail));
 };
 
 const modules = Object.keys(import.meta.glob("../src/**/*")).map((key) =>
