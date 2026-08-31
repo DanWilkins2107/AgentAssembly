@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { anonClient, serviceRoleClient, signedInClient, withRollback, withSql } from "./harness.ts";
-import { removeRowPerTable, seedRowPerTable } from "./seed.ts";
+import { seedRowPerTable } from "./seed.ts";
 
 type Tier = "anon" | "authenticated";
 
@@ -118,7 +118,6 @@ describe("column access coverage", () => {
 
   afterAll(async () => {
     const { error } = await admin.auth.admin.deleteUser(userId);
-    await withSql(removeRowPerTable);
     if (error) throw error;
   });
 
