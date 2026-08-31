@@ -54,48 +54,17 @@ export interface BwrapOptions {
   exists?: (p: string) => boolean;
 }
 
-export function buildBwrapArgs(
-  innerBin: string,
-  innerArgs: string[],
-  opts: BwrapOptions,
-): string[] {
-  if (opts.callerUid === 0)
-    throw new Error("refusing to build sandbox args for a uid 0 caller");
-
-  const exists = opts.exists ?? existsSync;
-  const {
-    LOOP_SESSION_PROXY: proxy,
-    LOOP_SESSION_WORKDIR: workdir,
-    NO_PROXY: noProxy,
-  } = opts.env;
-  const args: string[] = [
-    "--unshare-user",
-    "--unshare-pid",
-    "--unshare-ipc",
-    "--unshare-uts",
-    "--unshare-cgroup-try",
-    "--uid",
-    SANDBOX_UID,
-    "--gid",
-    SANDBOX_GID,
-    "--new-session",
-    "--die-with-parent",
-    "--proc",
-    "/proc",
-    "--dev",
-    "/dev",
-    "--tmpfs",
-    "/tmp",
-  ];
-
+function roBindArgs(exists: (p: string) => boolean): string[] {
+  const args: string[] = [];
   for (const p of RO_PATHS) {
     if (exists(p)) args.push("--ro-bind", p, p);
   }
+  return args;
+}
 
-  args.push("--tmpfs", SANDBOX_HOME, "--setenv", "HOME", SANDBOX_HOME);
-  args.push("--bind", workdir, workdir, "--chdir", workdir);
-
-  args.push(
+// Both casings plus GIT_CONFIG_* so git cannot bypass the proxy.
+function proxyArgs(proxy: string, noProxy: string | undefined): string[] {
+  const args = [
     "--setenv",
     "HTTPS_PROXY",
     proxy,
@@ -117,12 +86,59 @@ export function buildBwrapArgs(
     "--setenv",
     "GIT_CONFIG_VALUE_0",
     proxy,
-  );
+  ];
   if (noProxy)
     args.push("--setenv", "NO_PROXY", noProxy, "--setenv", "no_proxy", noProxy);
+  return args;
+}
+
+export function buildBwrapArgs(
+  innerBin: string,
+  innerArgs: string[],
+  opts: BwrapOptions,
+): string[] {
+  if (opts.callerUid === 0)
+    throw new Error("refusing to build sandbox args for a uid 0 caller");
+
+  const {
+    LOOP_SESSION_PROXY: proxy,
+    LOOP_SESSION_WORKDIR: workdir,
+    NO_PROXY: noProxy,
+  } = opts.env;
 
   // The network namespace is deliberately NOT unshared: the session must reach
   // the host-local proxy. Network confinement is the host firewall's job.
-  args.push(innerBin, ...innerArgs);
-  return args;
+  return [
+    "--unshare-user",
+    "--unshare-pid",
+    "--unshare-ipc",
+    "--unshare-uts",
+    "--unshare-cgroup-try",
+    "--uid",
+    SANDBOX_UID,
+    "--gid",
+    SANDBOX_GID,
+    "--new-session",
+    "--die-with-parent",
+    "--proc",
+    "/proc",
+    "--dev",
+    "/dev",
+    "--tmpfs",
+    "/tmp",
+    ...roBindArgs(opts.exists ?? existsSync),
+    "--tmpfs",
+    SANDBOX_HOME,
+    "--setenv",
+    "HOME",
+    SANDBOX_HOME,
+    "--bind",
+    workdir,
+    workdir,
+    "--chdir",
+    workdir,
+    ...proxyArgs(proxy, noProxy),
+    innerBin,
+    ...innerArgs,
+  ];
 }
