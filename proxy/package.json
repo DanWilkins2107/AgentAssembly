@@ -1,0 +1,16 @@
+{
+  "name": "agentassembly-proxy",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "agentassembly-proxy": "./dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --coverage",
+    "lint": "eslint .",
+    "format:check": "prettier --check ."
+  }
+}
