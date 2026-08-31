@@ -1,12 +1,12 @@
 #!/bin/bash
-# Runs the real boot phase terraform/modules/vm/user-data/20-squid.sh and proves the
+# Runs the real boot phase terraform/modules/vm/user-data/squid.sh and proves the
 # access log it configures records host:port and never path, query or credentials.
 # Destructive (installs packages, edits /etc/hosts) - run it in a throwaway container:
 #   docker run --rm -v "$PWD:/repo" -w /repo ubuntu:24.04 \
 #     terraform/modules/vm/tests/squid-access-log.sh
 set -euo pipefail
 
-squid_phase=terraform/modules/vm/user-data/20-squid.sh
+squid_phase=terraform/modules/vm/user-data/squid.sh
 secret=SUPERSECRETTOKEN
 session=sess-test_1
 log=/var/log/squid/access.log
@@ -25,10 +25,10 @@ apt-get install -y -qq squid python3 curl openssl >/dev/null
 # session-proxy-identity exactly as the boot does; only the terraform-supplied
 # allowlist host is stubbed, which locals.tf exports before entry.sh runs the phases.
 agentjira_supabase_host=supabase.test
-# shellcheck source=terraform/modules/vm/user-data/20-squid.sh
+# shellcheck source=terraform/modules/vm/user-data/squid.sh
 . "$squid_phase"
 
-# The same line 40-packages.sh runs; the read/truncate assertions below depend on it.
+# The same line packages.sh runs; the read/truncate assertions below depend on it.
 install -d -o proxy -g proxy -m 0750 /var/log/squid
 
 eval "$(session-proxy-identity "$session" | sed 's/^/export /')"

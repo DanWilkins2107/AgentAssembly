@@ -5,10 +5,10 @@
 set -eux
 cd "$(dirname "$0")"
 
-. ./10-loop-user.sh
-. ./20-squid.sh
-. ./30-nftables-ruleset.sh
-. ./40-packages.sh
-. ./50-egress-lockdown.sh
-. ./60-loop-env.sh
-. ./70-supervisor-unit.sh
+. ./loop-user.sh
+. ./squid.sh
+. ./nftables-ruleset.sh
+. ./packages.sh
+. ./egress-lockdown.sh
+. ./loop-env.sh
+. ./supervisor-unit.sh
