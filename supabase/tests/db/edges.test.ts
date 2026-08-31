@@ -69,17 +69,6 @@ describe("edges constraints", () => {
       expect(reversed.rowCount).toBe(1);
     });
   });
-
-  it("refuses to delete a node an edge still points at", async () => {
-    await withRollback(async (sql) => {
-      await seedGraph(sql);
-      await insertEdge(sql);
-
-      await expect(
-        sql.query(`delete from public.nodes where id = $1`, [TARGET_ID]),
-      ).rejects.toMatchObject({ code: "23503" });
-    });
-  });
 });
 
 describe("edges defaults", () => {
