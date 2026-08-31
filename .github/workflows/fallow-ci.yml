@@ -1,4 +1,4 @@
-name: web-ci
+name: fallow-ci
 
 on:
   push:
@@ -11,8 +11,8 @@ on:
       - '**.md'
 
 jobs:
-  web:
-    name: Web - typecheck, lint, test & build
+  fallow:
+    name: Fallow - dead-code, duplication, complexity
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,14 +26,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck -w agentassembly-web
-
-      - name: Lint
-        run: npm run lint -w agentassembly-web
-
-      - name: Test
-        run: npm run test -w agentassembly-web
-
-      - name: Build
-        run: npm run build -w agentassembly-web
+      - name: Fallow
+        run: npm run fallow
