@@ -53,45 +53,78 @@ export type ParseResult =
   | { ok: true; method: string; head: Head }
   | { ok: false; method: string; status: 400 | 405 };
 
-function target(text: string): { host: string; port: number } | null {
-  const colon = text.lastIndexOf(":");
+function splitAtColon(
+  text: string,
+  colon: number,
+): { left: string; right: string } | null {
   if (colon === -1) return null;
-  const host = text.slice(0, colon).toLowerCase();
-  const port = text.slice(colon + 1);
-  if (host.length > MAX_HOST_LENGTH || !HOST.test(host)) return null;
-  if (!PORT.test(port) || Number(port) > MAX_PORT) return null;
+  return {
+    left: text.slice(0, colon).toLowerCase(),
+    right: text.slice(colon + 1),
+  };
+}
+
+function validHost(host: string): boolean {
+  return host.length <= MAX_HOST_LENGTH && HOST.test(host);
+}
+
+function validPort(port: string): boolean {
+  return PORT.test(port) && Number(port) <= MAX_PORT;
+}
+
+function target(text: string): { host: string; port: number } | null {
+  const split = splitAtColon(text, text.lastIndexOf(":"));
+  if (split === null) return null;
+  const { left: host, right: port } = split;
+  if (!validHost(host) || !validPort(port)) return null;
   return { host, port: Number(port) };
+}
+
+type Field = { name: string; value: string };
+
+function fields(lines: string[]): Field[] | null {
+  const parsed: Field[] = [];
+  for (const line of lines) {
+    const split = splitAtColon(line, line.indexOf(":"));
+    // Also rejects obs-fold continuations, whose name would start with a space.
+    if (split === null || !FIELD_NAME.test(split.left)) return null;
+    parsed.push({ name: split.left, value: split.right.trim() });
+  }
+  return parsed;
 }
 
 // Only Proxy-Authorization is kept; nothing else in the headers is ever read. A
 // repeat of it is refused rather than resolved, so the policy hook can never be
 // shown a different credential from the one a reader of the request would see.
 function proxyAuthorization(lines: string[]): string | null | undefined {
-  let value: string | undefined;
-  for (const line of lines) {
-    const colon = line.indexOf(":");
-    if (colon === -1) return null;
-    const name = line.slice(0, colon).toLowerCase();
-    // Also rejects obs-fold continuations, whose name would start with a space.
-    if (!FIELD_NAME.test(name)) return null;
-    if (name !== "proxy-authorization") continue;
-    if (value !== undefined) return null;
-    value = line.slice(colon + 1).trim();
-    if (hasControl(value)) return null;
-  }
-  return value;
+  const parsed = fields(lines);
+  if (parsed === null) return null;
+  const values = parsed
+    .filter((field) => field.name === "proxy-authorization")
+    .map((field) => field.value);
+  if (values.length > 1) return null;
+  const [value] = values;
+  if (value === undefined) return undefined;
+  return hasControl(value) ? null : value;
+}
+
+function splitRequestLine(line: string): {
+  method: string;
+  destination: string | null;
+} {
+  const parts = line.split(" ") as [string, ...string[]];
+  const method = logMethod(parts[0]);
+  if (parts.length !== 3) return { method, destination: null };
+  const [, destination, version] = parts as [string, string, string];
+  return { method, destination: VERSION.test(version) ? destination : null };
 }
 
 export function parseHead(text: string): ParseResult {
-  // split always yields at least one element, and the length check below is what
-  // makes the request line a three-tuple.
+  // split always yields at least one element, and splitRequestLine's length
+  // check is what makes the request line a three-tuple.
   const [requestLine, ...headers] = text.split("\r\n") as [string, ...string[]];
-  const parts = requestLine.split(" ") as [string, ...string[]];
-  const method = logMethod(parts[0]);
-  if (parts.length !== 3) return { ok: false, method, status: 400 };
-
-  const [, destination, version] = parts as [string, string, string];
-  if (!VERSION.test(version)) return { ok: false, method, status: 400 };
+  const { method, destination } = splitRequestLine(requestLine);
+  if (destination === null) return { ok: false, method, status: 400 };
   // logMethod has already mapped anything but a known token to `-`.
   if (method !== "CONNECT") return { ok: false, method, status: 405 };
 

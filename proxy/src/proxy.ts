@@ -8,9 +8,9 @@ import { MAX_HEAD_BYTES, parseHead } from "./head.js";
 import { logLine } from "./log.js";
 import type { Policy } from "./policy.js";
 
-export const HEAD_TIMEOUT_MS = 10_000;
+const HEAD_TIMEOUT_MS = 10_000;
 // Core's own rule, ahead of the policy hook: nothing but HTTPS leaves the box.
-export const ALLOWED_PORT = 443;
+const ALLOWED_PORT = 443;
 
 const TERMINATOR = "\r\n\r\n";
 const ESTABLISHED = "HTTP/1.1 200 Connection Established\r\n\r\n";
