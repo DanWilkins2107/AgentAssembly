@@ -82,135 +82,40 @@ data "aws_iam_policy_document" "state_access" {
   }
 }
 
-# A single aws_s3_bucket refresh fans out to a dozen-odd Get calls and grows a new
-# one whenever a bucket sub-resource is added, so this wildcards the action and
-# scopes the resource instead. egress_log_bucket_arn is the bucket ARN with no
-# /* suffix, and object actions cannot authorize against a bucket ARN - so this
-# grants bucket configuration reads only, never the log objects.
-data "aws_iam_policy_document" "egress_log_bucket_read" {
-  statement {
-    sid       = "EgressLogBucketRead"
-    effect    = "Allow"
-    actions   = ["s3:Get*"]
-    resources = [module.names.egress_log_bucket_arn]
-  }
-}
-
-# KMS key ARNs embed a generated key id, so key statements scope on the Project
-# tag (terraform/locals.tf common_tags) instead of a name prefix.
-data "aws_iam_policy_document" "kms_common" {
-  statement {
-    sid    = "KmsReadTagged"
-    effect = "Allow"
-    actions = [
-      "kms:DescribeKey",
-      "kms:GetKeyPolicy",
-      "kms:GetKeyRotationStatus",
-      "kms:ListResourceTags",
-    ]
-    resources = ["*"]
-
-    condition {
-      test     = "StringEquals"
-      variable = "aws:ResourceTag/Project"
-      values   = [local.name_prefix]
-    }
-  }
-
-  statement {
-    sid       = "KmsListAliases"
-    effect    = "Allow"
-    actions   = ["kms:ListAliases"]
-    resources = ["*"]
-  }
-
+# Both CI roles carry the AWS ReadOnlyAccess managed policy for refresh reads.
+# These denies are the guardrail on top of it: an inline deny beats every allow and
+# cannot be lifted by a key policy or a secret resource policy.
+data "aws_iam_policy_document" "deny_data_plane" {
   # Without this, kms:PutKeyPolicy lets ci-apply grant itself decrypt on the CMK.
-  # A deny here cannot be overridden by a key policy. Encrypt/GenerateDataKey* are
-  # deliberately not denied: Secrets Manager validates the CMK at CreateSecret.
+  # Encrypt/GenerateDataKey* are deliberately not denied: Secrets Manager validates
+  # the CMK at CreateSecret.
   statement {
     sid       = "DenyKmsDataPlane"
     effect    = "Deny"
     actions   = ["kms:Decrypt", "kms:ReEncrypt*"]
     resources = ["*"]
   }
-}
-
-# Read side of what the root stack (terraform/) manages. ci_plan needs it or every
-# refresh hits AccessDenied; ci_apply sources it too because apply refreshes first.
-data "aws_iam_policy_document" "root_read" {
-  # Covers the vm role, its SSM attachment, the vm-egress-log-write inline policy
-  # and the instance profile. The account-wide iam reads (ListRoles,
-  # GetAccountAuthorizationDetails, GetCredentialReport) only authorize against
-  # Resource "*", so the prefix scoping leaves them denied.
-  statement {
-    sid     = "IamRead"
-    effect  = "Allow"
-    actions = ["iam:Get*", "iam:List*"]
-    resources = [
-      "arn:aws:iam::${var.account_id}:role/${local.name_prefix}-*",
-      "arn:aws:iam::${var.account_id}:instance-profile/${local.name_prefix}-*",
-    ]
-  }
-
-  # us-east-1, not local.region: AWS Budgets only publishes to us-east-1 topics, so
-  # terraform/spend-guard.tf creates the topic behind an aliased provider.
-  statement {
-    sid       = "SnsRead"
-    effect    = "Allow"
-    actions   = ["sns:Get*", "sns:List*"]
-    resources = ["arn:aws:sns:us-east-1:${var.account_id}:${local.name_prefix}-*"]
-  }
-
-  statement {
-    sid       = "BudgetsRead"
-    effect    = "Allow"
-    actions   = ["budgets:ViewBudget"]
-    resources = ["arn:aws:budgets::${var.account_id}:budget/${local.name_prefix}-*"]
-  }
-
-  # Listed out rather than wildcarded like the statements above: secretsmanager:Get*
-  # would match GetSecretValue, and an allow clawed back by the deny below is a worse
-  # thing to have to reason about than two named actions.
-  statement {
-    sid       = "SecretsRead"
-    effect    = "Allow"
-    actions   = ["secretsmanager:DescribeSecret", "secretsmanager:GetResourcePolicy"]
-    resources = ["arn:aws:secretsmanager:${local.region}:${var.account_id}:secret:${local.name_prefix}-*"]
-  }
 
   # Plan output lands in a public PR comment and ci-plan is assumed on PR runs.
-  # DescribeSecret is metadata only; the value must stay unreadable, and a deny here
-  # cannot be lifted by a secret resource policy.
   statement {
     sid       = "DenySecretValue"
     effect    = "Deny"
     actions   = ["secretsmanager:GetSecretValue", "secretsmanager:PutSecretValue"]
-    resources = ["arn:aws:secretsmanager:${local.region}:${var.account_id}:secret:${local.name_prefix}-*"]
+    resources = ["*"]
   }
 }
 
 data "aws_iam_policy_document" "ci_plan" {
   source_policy_documents = [
     data.aws_iam_policy_document.state_access.json,
-    data.aws_iam_policy_document.kms_common.json,
-    data.aws_iam_policy_document.egress_log_bucket_read.json,
-    data.aws_iam_policy_document.root_read.json,
+    data.aws_iam_policy_document.deny_data_plane.json,
   ]
-
-  statement {
-    sid       = "Ec2Read"
-    effect    = "Allow"
-    actions   = ["ec2:Describe*", "ec2:Get*"]
-    resources = ["*"]
-  }
 }
 
 data "aws_iam_policy_document" "ci_apply" {
   source_policy_documents = [
     data.aws_iam_policy_document.state_access.json,
-    data.aws_iam_policy_document.kms_common.json,
-    data.aws_iam_policy_document.egress_log_bucket_read.json,
-    data.aws_iam_policy_document.root_read.json,
+    data.aws_iam_policy_document.deny_data_plane.json,
   ]
 
   statement {
@@ -219,14 +124,9 @@ data "aws_iam_policy_document" "ci_apply" {
     actions = [
       "iam:CreateRole",
       "iam:DeleteRole",
-      "iam:GetRole",
       "iam:TagRole",
       "iam:UntagRole",
-      "iam:ListRoleTags",
       "iam:UpdateAssumeRolePolicy",
-      "iam:ListAttachedRolePolicies",
-      "iam:ListRolePolicies",
-      "iam:ListInstanceProfilesForRole",
     ]
     resources = ["arn:aws:iam::${var.account_id}:role/${local.name_prefix}-*"]
   }
@@ -253,12 +153,10 @@ data "aws_iam_policy_document" "ci_apply" {
     actions = [
       "iam:CreateInstanceProfile",
       "iam:DeleteInstanceProfile",
-      "iam:GetInstanceProfile",
       "iam:AddRoleToInstanceProfile",
       "iam:RemoveRoleFromInstanceProfile",
       "iam:TagInstanceProfile",
       "iam:UntagInstanceProfile",
-      "iam:ListInstanceProfileTags",
     ]
     resources = ["arn:aws:iam::${var.account_id}:instance-profile/${local.name_prefix}-*"]
   }
@@ -279,7 +177,7 @@ data "aws_iam_policy_document" "ci_apply" {
   statement {
     sid       = "IamRoleInline"
     effect    = "Allow"
-    actions   = ["iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy"]
+    actions   = ["iam:PutRolePolicy", "iam:DeleteRolePolicy"]
     resources = ["arn:aws:iam::${var.account_id}:role/${local.name_prefix}-*"]
   }
 
@@ -289,19 +187,14 @@ data "aws_iam_policy_document" "ci_apply" {
     actions = [
       "lambda:CreateFunction",
       "lambda:DeleteFunction",
-      "lambda:GetFunction",
-      "lambda:GetFunctionConfiguration",
       "lambda:UpdateFunctionCode",
       "lambda:UpdateFunctionConfiguration",
-      "lambda:ListVersionsByFunction",
       "lambda:PutFunctionConcurrency",
       "lambda:DeleteFunctionConcurrency",
       "lambda:AddPermission",
       "lambda:RemovePermission",
-      "lambda:GetPolicy",
       "lambda:TagResource",
       "lambda:UntagResource",
-      "lambda:ListTags",
     ]
     resources = ["arn:aws:lambda:${local.region}:${var.account_id}:function:${local.name_prefix}-*"]
   }
@@ -312,15 +205,12 @@ data "aws_iam_policy_document" "ci_apply" {
     actions = [
       "events:PutRule",
       "events:DeleteRule",
-      "events:DescribeRule",
       "events:EnableRule",
       "events:DisableRule",
       "events:PutTargets",
       "events:RemoveTargets",
-      "events:ListTargetsByRule",
       "events:TagResource",
       "events:UntagResource",
-      "events:ListTagsForResource",
     ]
     resources = ["arn:aws:events:${local.region}:${var.account_id}:rule/${local.name_prefix}-*"]
   }
@@ -331,9 +221,7 @@ data "aws_iam_policy_document" "ci_apply" {
     actions = [
       "secretsmanager:CreateSecret",
       "secretsmanager:DeleteSecret",
-      "secretsmanager:DescribeSecret",
       "secretsmanager:UpdateSecret",
-      "secretsmanager:GetResourcePolicy",
       "secretsmanager:TagResource",
       "secretsmanager:UntagResource",
     ]
@@ -407,7 +295,7 @@ data "aws_iam_policy_document" "ci_apply" {
   statement {
     sid       = "Budgets"
     effect    = "Allow"
-    actions   = ["budgets:ViewBudget", "budgets:ModifyBudget"]
+    actions   = ["budgets:ModifyBudget"]
     resources = ["arn:aws:budgets::${var.account_id}:budget/${local.name_prefix}-*"]
   }
 
@@ -419,13 +307,10 @@ data "aws_iam_policy_document" "ci_apply" {
     actions = [
       "sns:CreateTopic",
       "sns:DeleteTopic",
-      "sns:GetTopicAttributes",
       "sns:SetTopicAttributes",
       "sns:Subscribe",
-      "sns:ListSubscriptionsByTopic",
       "sns:TagResource",
       "sns:UntagResource",
-      "sns:ListTagsForResource",
     ]
     resources = ["arn:aws:sns:us-east-1:${var.account_id}:${local.name_prefix}-*"]
   }
@@ -470,4 +355,14 @@ resource "aws_iam_role_policy" "ci_apply" {
 resource "aws_iam_role_policy_attachment" "ci_apply_ec2" {
   role       = aws_iam_role.ci_apply.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "ci_plan_read" {
+  role       = aws_iam_role.ci_plan.name
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "ci_apply_read" {
+  role       = aws_iam_role.ci_apply.name
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
