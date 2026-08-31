@@ -1,0 +1,16 @@
+{
+  "name": "agentassembly-runner",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Single-session runner: runs one AgentJira node in one fresh headless Claude Code session.",
+  "type": "module",
+  "scripts": {
+    "start": "tsx run-task.ts",
+    "judge": "tsx run-judge.ts",
+    "test": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "mutation": "stryker run"
+  }
+}
