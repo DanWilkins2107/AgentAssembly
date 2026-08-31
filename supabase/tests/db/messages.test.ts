@@ -1,23 +1,14 @@
 import type { Client } from "pg";
 import { describe, expect, it } from "vitest";
 import { withRollback } from "./harness.ts";
+import { insertRow, seedNodes, seedProject, seedUsers } from "./seed.ts";
 
 const USER_ID = "00000000-0000-0000-0000-0000000000a1";
 const PROJECT_ID = "00000000-0000-0000-0000-0000000000b1";
 const NODE_ID = "00000000-0000-0000-0000-0000000000c1";
 const ABSENT_ID = "00000000-0000-0000-0000-0000000000ff";
 
-type MessageRow = {
-  node_id: string;
-  project_id: string;
-  stage: string;
-  type: string;
-  author_role: string;
-  author_id: string | null;
-  body: string;
-};
-
-const validMessage: MessageRow = {
+const validMessage = {
   node_id: NODE_ID,
   project_id: PROJECT_ID,
   stage: "spec_review",
@@ -27,46 +18,23 @@ const validMessage: MessageRow = {
   body: "the spec",
 };
 
-async function seed(sql: Client): Promise<void> {
-  await sql.query(
-    `insert into auth.users
-       (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
-     values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-             'messages-test@example.com', '', now(), now())`,
-    [USER_ID],
-  );
-  await sql.query(
-    `insert into public.projects (id, name, created_by) values ($1, 'Messages test', $2)`,
-    [PROJECT_ID, USER_ID],
-  );
-  await sql.query(
-    `insert into public.nodes (id, project_id, title, status, created_by)
-     values ($1, $2, 'Host node', 'spec_review', $3)`,
-    [NODE_ID, PROJECT_ID, USER_ID],
-  );
-}
-
 function withSeed(run: (sql: Client) => Promise<void>): () => Promise<void> {
   return () =>
     withRollback(async (sql) => {
-      await seed(sql);
+      await seedUsers(sql, [USER_ID]);
+      await seedProject(sql, PROJECT_ID, USER_ID);
+      await seedNodes(sql, [NODE_ID], PROJECT_ID, USER_ID, "spec_review");
       await run(sql);
     });
 }
 
-function insertMessage(sql: Client, row: Partial<MessageRow>) {
-  const columns = Object.keys(row);
-  const placeholders = columns.map((_, index) => `$${index + 1}`);
-  return sql.query(
-    `insert into public.messages (${columns.join(", ")})
-     values (${placeholders.join(", ")}) returning *`,
-    Object.values(row),
-  );
+function insertMessage(sql: Client, row: Record<string, unknown>) {
+  return insertRow(sql, "public.messages", row);
 }
 
 async function insertRejected(
   sql: Client,
-  row: Partial<MessageRow>,
+  row: Record<string, unknown>,
   code: string,
 ): Promise<void> {
   await sql.query("savepoint attempt");
@@ -239,7 +207,7 @@ describe("messages constraints", () => {
     withSeed(async (sql) => {
       const required = ["node_id", "project_id", "stage", "type", "author_role", "body"] as const;
       for (const column of required) {
-        const row: Partial<MessageRow> = { ...validMessage };
+        const row: Record<string, unknown> = { ...validMessage };
         delete row[column];
         await insertRejected(sql, row, "23502");
       }

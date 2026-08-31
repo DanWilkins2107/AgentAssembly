@@ -1,6 +1,7 @@
 import type { Client, QueryResult } from "pg";
 import { describe, expect, it } from "vitest";
 import { withRollback } from "./harness.ts";
+import { seedProject, seedUsers } from "./seed.ts";
 
 const OWNER_USER = "00000000-0000-0000-0000-0000000000c1";
 const AGENT_USER = "00000000-0000-0000-0000-0000000000c2";
@@ -8,20 +9,8 @@ const PROJECT = "00000000-0000-0000-0000-0000000000d1";
 const ABSENT = "00000000-0000-0000-0000-0000000000ff";
 
 async function seed(sql: Client): Promise<void> {
-  await sql.query(
-    `insert into auth.users
-       (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
-     values
-       ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-        'members-owner@example.com', '', now(), now()),
-       ($2, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-        'members-agent@example.com', '', now(), now())`,
-    [OWNER_USER, AGENT_USER],
-  );
-  await sql.query(
-    `insert into public.projects (id, name, created_by) values ($1, 'Members test', $2)`,
-    [PROJECT, OWNER_USER],
-  );
+  await seedUsers(sql, [OWNER_USER, AGENT_USER]);
+  await seedProject(sql, PROJECT, OWNER_USER);
 }
 
 function addMember(
