@@ -7,11 +7,8 @@ type SuiteException = {
   reason: string;
 };
 
-// Tables intentionally left without a suite. Every entry needs a reason.
 const suiteExceptions: SuiteException[] = [];
 
-// A table's suites are named after it with `_` swapped for `-`, plus any suffix:
-// project_members -> project-members.test.ts or project-members-<anything>.test.ts.
 function hasSuite(table: string, files: string[]): boolean {
   const slug = table.replaceAll("_", "-");
   return files.some((file) => file === `${slug}.test.ts` || file.startsWith(`${slug}-`));
@@ -55,8 +52,6 @@ describe("per-table suite coverage", () => {
     expect(tablesWithoutSuite(tables, suiteFiles)).toEqual([]);
   });
 
-  // The three below prove the check bites. A meta check that only ever passes
-  // on the current tree guards nothing.
   it("catches a new table nobody wrote a suite for", () => {
     expect(tablesWithoutSuite([...tables, "widgets"], suiteFiles)).toEqual(["widgets"]);
   });
