@@ -24,8 +24,7 @@
     "test:coverage": "vitest run --coverage",
     "test:mutation": "stryker run",
     "lint": "eslint .",
-    "format:check": "prettier --check .",
-    "fallow": "fallow"
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",

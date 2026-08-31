@@ -1,0 +1,30 @@
+name: fallow-ci
+
+on:
+  push:
+    paths-ignore:
+      - 'terraform/**'
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - 'terraform/**'
+      - '**.md'
+
+jobs:
+  fallow:
+    name: Fallow - dead-code, duplication, complexity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fallow
+        run: npm run fallow
