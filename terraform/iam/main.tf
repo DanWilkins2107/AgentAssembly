@@ -82,31 +82,16 @@ data "aws_iam_policy_document" "state_access" {
   }
 }
 
-# The read half is the fan-out of Get calls the aws_s3_bucket refresh makes, so
-# plan needs all of them to see the bucket at all.
+# A single aws_s3_bucket refresh fans out to a dozen-odd Get calls and grows a new
+# one whenever a bucket sub-resource is added, so this wildcards the action and
+# scopes the resource instead. egress_log_bucket_arn is the bucket ARN with no
+# /* suffix, and object actions cannot authorize against a bucket ARN - so this
+# grants bucket configuration reads only, never the log objects.
 data "aws_iam_policy_document" "egress_log_bucket_read" {
   statement {
-    sid    = "EgressLogBucketRead"
-    effect = "Allow"
-    actions = [
-      "s3:GetAccelerateConfiguration",
-      "s3:GetBucketAcl",
-      "s3:GetBucketCORS",
-      "s3:GetBucketLocation",
-      "s3:GetBucketLogging",
-      "s3:GetBucketNotification",
-      "s3:GetBucketObjectLockConfiguration",
-      "s3:GetBucketOwnershipControls",
-      "s3:GetBucketPolicy",
-      "s3:GetBucketPublicAccessBlock",
-      "s3:GetBucketRequestPayment",
-      "s3:GetBucketTagging",
-      "s3:GetBucketVersioning",
-      "s3:GetBucketWebsite",
-      "s3:GetEncryptionConfiguration",
-      "s3:GetLifecycleConfiguration",
-      "s3:GetReplicationConfiguration",
-    ]
+    sid       = "EgressLogBucketRead"
+    effect    = "Allow"
+    actions   = ["s3:Get*"]
     resources = [module.names.egress_log_bucket_arn]
   }
 }
@@ -153,39 +138,26 @@ data "aws_iam_policy_document" "kms_common" {
 # Read side of what the root stack (terraform/) manages. ci_plan needs it or every
 # refresh hits AccessDenied; ci_apply sources it too because apply refreshes first.
 data "aws_iam_policy_document" "root_read" {
+  # Covers the vm role, its SSM attachment, the vm-egress-log-write inline policy
+  # and the instance profile. The account-wide iam reads (ListRoles,
+  # GetAccountAuthorizationDetails, GetCredentialReport) only authorize against
+  # Resource "*", so the prefix scoping leaves them denied.
   statement {
-    # GetRolePolicy is for the vm-egress-log-write inline policy added by
-    # terraform/egress-log.tf; the rest cover the vm role and its SSM attachment.
-    sid    = "IamRoleRead"
-    effect = "Allow"
-    actions = [
-      "iam:GetRole",
-      "iam:GetRolePolicy",
-      "iam:ListRoleTags",
-      "iam:ListRolePolicies",
-      "iam:ListAttachedRolePolicies",
+    sid     = "IamRead"
+    effect  = "Allow"
+    actions = ["iam:Get*", "iam:List*"]
+    resources = [
+      "arn:aws:iam::${var.account_id}:role/${local.name_prefix}-*",
+      "arn:aws:iam::${var.account_id}:instance-profile/${local.name_prefix}-*",
     ]
-    resources = ["arn:aws:iam::${var.account_id}:role/${local.name_prefix}-*"]
-  }
-
-  statement {
-    sid       = "IamInstanceProfileRead"
-    effect    = "Allow"
-    actions   = ["iam:GetInstanceProfile", "iam:ListInstanceProfileTags"]
-    resources = ["arn:aws:iam::${var.account_id}:instance-profile/${local.name_prefix}-*"]
   }
 
   # us-east-1, not local.region: AWS Budgets only publishes to us-east-1 topics, so
   # terraform/spend-guard.tf creates the topic behind an aliased provider.
   statement {
-    sid    = "SnsRead"
-    effect = "Allow"
-    actions = [
-      "sns:GetTopicAttributes",
-      "sns:GetSubscriptionAttributes",
-      "sns:ListSubscriptionsByTopic",
-      "sns:ListTagsForResource",
-    ]
+    sid       = "SnsRead"
+    effect    = "Allow"
+    actions   = ["sns:Get*", "sns:List*"]
     resources = ["arn:aws:sns:us-east-1:${var.account_id}:${local.name_prefix}-*"]
   }
 
@@ -196,6 +168,9 @@ data "aws_iam_policy_document" "root_read" {
     resources = ["arn:aws:budgets::${var.account_id}:budget/${local.name_prefix}-*"]
   }
 
+  # Listed out rather than wildcarded like the statements above: secretsmanager:Get*
+  # would match GetSecretValue, and an allow clawed back by the deny below is a worse
+  # thing to have to reason about than two named actions.
   statement {
     sid       = "SecretsRead"
     effect    = "Allow"
