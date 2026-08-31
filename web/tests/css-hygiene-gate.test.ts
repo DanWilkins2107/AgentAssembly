@@ -18,27 +18,34 @@ const strayCssImportsIn = (path: string, source: string) =>
         !(path === THEME_IMPORTER && specifier === "./theme.css"),
     );
 
+const opensSelector = (prelude: string) => !prelude.trimStart().startsWith("@");
+
+const classesDeclaredBy = (prelude: string, inDeclarations: boolean[]) =>
+  opensSelector(prelude) && !inDeclarations.at(-1)
+    ? (prelude.match(CLASS) ?? []).map((match) => match.slice(1))
+    : [];
+
 const declaredClassesIn = (source: string) => {
   const names: string[] = [];
   const inDeclarations: boolean[] = [];
   let prelude = "";
 
   for (const char of source) {
-    if (char === "{") {
-      const isSelector = !prelude.trimStart().startsWith("@");
-      if (isSelector && !inDeclarations.at(-1))
-        names.push(
-          ...(prelude.match(CLASS) ?? []).map((match) => match.slice(1)),
-        );
-      inDeclarations.push(isSelector);
-      prelude = "";
-    } else if (char === "}") {
-      inDeclarations.pop();
-      prelude = "";
-    } else if (char === ";") {
-      prelude = "";
-    } else {
-      prelude += char;
+    switch (char) {
+      case "{":
+        names.push(...classesDeclaredBy(prelude, inDeclarations));
+        inDeclarations.push(opensSelector(prelude));
+        prelude = "";
+        break;
+      case "}":
+        inDeclarations.pop();
+        prelude = "";
+        break;
+      case ";":
+        prelude = "";
+        break;
+      default:
+        prelude += char;
     }
   }
 
