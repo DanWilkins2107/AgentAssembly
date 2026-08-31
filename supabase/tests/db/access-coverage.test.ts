@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { anonClient, serviceRoleClient, signedInClient, withRollback } from "./harness.ts";
+import { anonClient, serviceRoleClient, signedInClient, withRollback, withSql } from "./harness.ts";
+import { clearProjectGraph, foreignGraph, seedProjectGraph } from "./seed.ts";
 
 type Tier = "anon" | "authenticated";
 
@@ -14,14 +15,20 @@ type AccessException = {
 // Columns intentionally readable through PostgREST. Every entry needs a reason.
 const accessExceptions: AccessException[] = [];
 
-// A read is only safe when the API refuses it outright. An empty 200 means the
-// grant exists and only RLS is holding the door, and it is indistinguishable
-// from an empty table -- so it counts as readable, not denied.
 const denialCodes = new Set([
   "42501", // permission denied for table/column
   "PGRST106", // schema not exposed
   "PGRST205", // relation absent from the schema cache
 ]);
+
+// anon holds no grant at all, so every column must be refused outright. A
+// signed-in user holds grants but no membership, so RLS answers an empty 200
+// instead -- which only proves anything because the fixture below puts a row in
+// every table, and "no rows in a populated table" is the whole assertion.
+const permittedOutcomes: Record<Tier, Set<string>> = {
+  anon: new Set(["denied"]),
+  authenticated: new Set(["denied", "empty"]),
+};
 
 type Column = { relation: string; column: string };
 
@@ -49,10 +56,11 @@ async function publicColumns(): Promise<Column[]> {
 }
 
 async function readOutcome(client: SupabaseClient, { relation, column }: Column): Promise<string> {
-  const { error } = await client.from(relation).select(column).limit(1);
-  if (!error) return "readable";
-  if (denialCodes.has(error.code)) return "denied";
-  return `unexpected ${error.code}: ${error.message}`;
+  const { data, error } = await client.from(relation).select(column).limit(1);
+  if (error) {
+    return denialCodes.has(error.code) ? "denied" : `unexpected ${error.code}: ${error.message}`;
+  }
+  return data.length === 0 ? "empty" : "readable";
 }
 
 function isAllowed(column: Column, tier: Tier): boolean {
@@ -64,16 +72,28 @@ function isAllowed(column: Column, tier: Tier): boolean {
   );
 }
 
-async function undeniedColumns(client: SupabaseClient, tier: Tier): Promise<string[]> {
+async function reachableColumns(client: SupabaseClient, tier: Tier): Promise<string[]> {
   const outcomes = await Promise.all(
     columns.map(async (column) => ({ column, outcome: await readOutcome(client, column) })),
   );
   return outcomes
     .filter(
       ({ column, outcome }) =>
-        outcome !== "denied" && !(outcome === "readable" && isAllowed(column, tier)),
+        !permittedOutcomes[tier].has(outcome) &&
+        !(outcome === "readable" && isAllowed(column, tier)),
     )
     .map(({ column, outcome }) => `${column.relation}.${column.column}: ${outcome}`);
+}
+
+async function emptyRelations(): Promise<string[]> {
+  const relations = [...new Set(columns.map((column) => column.relation))];
+  const counted = await Promise.all(
+    relations.map(async (relation) => ({
+      relation,
+      count: (await admin.from(relation).select("*", { count: "exact", head: true })).count,
+    })),
+  );
+  return counted.filter(({ count }) => count === 0).map(({ relation }) => relation);
 }
 
 const admin = serviceRoleClient();
@@ -85,6 +105,10 @@ const credentials = {
 describe("column access coverage", () => {
   beforeAll(async () => {
     columns = await publicColumns();
+    await withSql(async (sql) => {
+      await clearProjectGraph(sql, foreignGraph);
+      await seedProjectGraph(sql, foreignGraph);
+    });
     const { data, error } = await admin.auth.admin.createUser({
       ...credentials,
       email_confirm: true,
@@ -95,6 +119,7 @@ describe("column access coverage", () => {
   }, 30_000);
 
   afterAll(async () => {
+    await withSql((sql) => clearProjectGraph(sql, foreignGraph));
     const { error } = await admin.auth.admin.deleteUser(userId);
     if (error) throw error;
   });
@@ -107,11 +132,15 @@ describe("column access coverage", () => {
     expect(accessExceptions.filter((exception) => exception.reason.trim() === "")).toEqual([]);
   });
 
-  it("denies anon every column", async () => {
-    expect(await undeniedColumns(anonClient(), "anon")).toEqual([]);
+  it("holds a row in every table, so an empty read is RLS and not an empty table", async () => {
+    expect(await emptyRelations()).toEqual([]);
   }, 30_000);
 
-  it("denies a signed-in user every column", async () => {
-    expect(await undeniedColumns(authenticated, "authenticated")).toEqual([]);
+  it("denies anon every column", async () => {
+    expect(await reachableColumns(anonClient(), "anon")).toEqual([]);
+  }, 30_000);
+
+  it("shows a signed-in non-member no row of any column", async () => {
+    expect(await reachableColumns(authenticated, "authenticated")).toEqual([]);
   }, 30_000);
 });

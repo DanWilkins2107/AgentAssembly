@@ -161,20 +161,6 @@ describe("messages schema", () => {
       expect(rows.find((row) => row.name === "messages_fts_idx")?.definition).toContain("(fts)");
     });
   });
-
-  it("enables row level security with no policies yet", async () => {
-    await withRollback(async (sql) => {
-      const { rows: table } = await sql.query<{ relrowsecurity: boolean }>(
-        `select relrowsecurity from pg_class where oid = 'public.messages'::regclass`,
-      );
-      expect(table[0]?.relrowsecurity).toBe(true);
-
-      const { rows: policies } = await sql.query(
-        `select policyname from pg_policies where schemaname = 'public' and tablename = 'messages'`,
-      );
-      expect(policies).toEqual([]);
-    });
-  });
 });
 
 describe("messages constraints", () => {

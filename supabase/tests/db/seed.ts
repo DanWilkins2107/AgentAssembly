@@ -34,6 +34,53 @@ export function seedNodes(
   );
 }
 
+// An owner plus one row in every public table, so an access test can tell "RLS
+// filtered the rows away" from "the table was empty anyway".
+export type ProjectGraph = { owner: string; project: string; nodes: [string, string] };
+
+// The graph PostgREST reads: owned by a user no test signs in as, and committed
+// rather than rolled back because the API reads it over its own connection.
+export const foreignGraph: ProjectGraph = {
+  owner: "00000000-0000-0000-0000-00000000ac01",
+  project: "00000000-0000-0000-0000-00000000ac11",
+  nodes: ["00000000-0000-0000-0000-00000000ac21", "00000000-0000-0000-0000-00000000ac22"],
+};
+
+export async function seedProjectGraph(sql: Client, graph: ProjectGraph): Promise<void> {
+  const { owner, project, nodes } = graph;
+  await seedUsers(sql, [owner]);
+  await seedProject(sql, project, owner);
+  await sql.query(
+    `insert into public.project_members (project_id, user_id, role) values ($1, $2, 'owner')`,
+    [project, owner],
+  );
+  await seedNodes(sql, nodes, project, owner);
+  await sql.query(
+    `insert into public.edges (project_id, source_id, target_id, type, created_by)
+     values ($1, $2, $3, 'subtask', $4)`,
+    [project, nodes[0], nodes[1], owner],
+  );
+  await sql.query(
+    `insert into public.messages (node_id, project_id, stage, type, author_role, body)
+     values ($1, $2, 'human_braindump_needed', 'note', 'system', 'seeded')`,
+    [nodes[0], project],
+  );
+  await sql.query(
+    `insert into public.events (project_id, actor_role, type) values ($1, 'system', 'seed')`,
+    [project],
+  );
+}
+
+// Only committed graphs need this; a graph seeded inside withRollback is undone
+// by the rollback.
+export async function clearProjectGraph(sql: Client, graph: ProjectGraph): Promise<void> {
+  for (const table of ["events", "messages", "edges", "nodes", "project_members"]) {
+    await sql.query(`delete from public.${table} where project_id = $1`, [graph.project]);
+  }
+  await sql.query(`delete from public.projects where id = $1`, [graph.project]);
+  await sql.query(`delete from auth.users where id = $1`, [graph.owner]);
+}
+
 // Column-by-column insert, so a test can omit a column to prove it is NOT NULL.
 export function insertRow(
   sql: Client,

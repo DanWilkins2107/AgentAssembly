@@ -16,17 +16,37 @@ export async function signedInClient(credentials: {
   return client;
 }
 
-export async function withRollback(run: (sql: Client) => Promise<void>): Promise<void> {
+// Committed work. Only for fixtures another connection has to see -- anything
+// read back over PostgREST -- and the caller owns the cleanup.
+export async function withSql(run: (sql: Client) => Promise<void>): Promise<void> {
   const sql = new Client({ connectionString: env.DB_URL });
   await sql.connect();
   try {
+    await run(sql);
+  } finally {
+    await sql.end();
+  }
+}
+
+export function withRollback(run: (sql: Client) => Promise<void>): Promise<void> {
+  return withSql(async (sql) => {
     await sql.query("begin");
     try {
       await run(sql);
     } finally {
       await sql.query("rollback");
     }
-  } finally {
-    await sql.end();
-  }
+  });
+}
+
+// Impersonate a signed-in user for the rest of the transaction. `authenticated`
+// is the role PostgREST switches to and auth.uid() reads request.jwt.claims, so
+// column grants and RLS policies apply exactly as they do over HTTP. The
+// connection is a superuser, which bypasses RLS, so tests that mean to exercise
+// a policy must call this first.
+export async function asAuthenticated(sql: Client, userId: string): Promise<void> {
+  await sql.query(`select set_config('request.jwt.claims', $1, true)`, [
+    JSON.stringify({ sub: userId }),
+  ]);
+  await sql.query("set local role authenticated");
 }

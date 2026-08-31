@@ -112,17 +112,4 @@ describe("edges schema", () => {
       ]);
     });
   });
-
-  it("has row level security on and no policies yet: those land in slice 8c320d4b", async () => {
-    await withRollback(async (sql) => {
-      const { rows } = await sql.query<{ enabled: boolean; policies: number }>(
-        `select relrowsecurity as enabled,
-                (select count(*)::int from pg_policies
-                  where schemaname = 'public' and tablename = 'edges') as policies
-           from pg_class where oid = 'public.edges'::regclass`,
-      );
-
-      expect(rows[0]).toEqual({ enabled: true, policies: 0 });
-    });
-  });
 });
