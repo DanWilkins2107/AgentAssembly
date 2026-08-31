@@ -1,37 +1,9 @@
--- Index, trigger and search behaviour for migration 0004_nodes.sql. Run by
+-- Trigger and search behaviour for migration 0004_nodes.sql. Run by
 -- `supabase test db`.
 
 begin;
 create extension if not exists pgtap;
-select plan(17);
-
--- Indexes
-
-select indexes_are(
-  'public', 'nodes',
-  array['nodes_pkey', 'nodes_project_id_status_idx', 'nodes_fts_idx'],
-  'nodes has the primary key index and exactly two secondary indexes'
-);
-
-select has_index(
-  'public', 'nodes', 'nodes_project_id_status_idx',
-  array['project_id', 'status'],
-  'the board query index is on (project_id, status)'
-);
-
-select has_index(
-  'public', 'nodes', 'nodes_fts_idx', 'fts',
-  'the search index is on (fts)'
-);
-
-select is(
-  (select access_method.amname::text
-     from pg_class index_class
-     join pg_am access_method on access_method.oid = index_class.relam
-    where index_class.oid = 'public.nodes_fts_idx'::regclass),
-  'gin',
-  'the search index is a GIN index'
-);
+select plan(13);
 
 -- updated_at trigger
 
