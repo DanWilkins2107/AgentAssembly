@@ -1,3 +1,5 @@
+import { parseJsonObject } from "./json";
+
 export type ErrorClass = "usage_limited" | "api_error" | "unknown";
 
 export interface EnvelopeClass {
@@ -10,14 +12,8 @@ const API_ERROR_RE =
   /overloaded_error|(?:\b|_)529\b|\b5\d\d\b|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|connection error|network error/i;
 
 function resultField(line: string): string | null {
-  let env;
-  try {
-    env = JSON.parse(line);
-  } catch {
-    return null;
-  }
-  if (env === null) return null;
-  return typeof env.result === "string" ? env.result : null;
+  const result = parseJsonObject(line).result;
+  return typeof result === "string" ? result : null;
 }
 
 function classifyResult(result: string): EnvelopeClass {

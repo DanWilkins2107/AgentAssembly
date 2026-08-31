@@ -1,4 +1,4 @@
-import { defineConfig, coverageConfigDefaults } from "vitest/config";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -6,7 +6,6 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text"],
       include: ["**/*.ts"],
-      exclude: [...coverageConfigDefaults.exclude],
       thresholds: { 100: true },
     },
   },
