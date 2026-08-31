@@ -1,6 +1,7 @@
 import type { Client, QueryResult } from "pg";
 import { describe, expect, it } from "vitest";
 import { withRollback } from "./harness.ts";
+import { seedUsers } from "./seed.ts";
 
 const USER_ID = "00000000-0000-0000-0000-0000000000aa";
 
@@ -17,16 +18,6 @@ type ProjectRow = {
   repo_name: string | null;
   archived_at: Date | null;
 };
-
-function seedUser(sql: Client): Promise<QueryResult> {
-  return sql.query(
-    `insert into auth.users
-       (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
-     values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-             'projects-test@example.com', '', now(), now())`,
-    [USER_ID],
-  );
-}
 
 function insertProject(sql: Client, project: ProjectInsert): Promise<QueryResult<ProjectRow>> {
   return sql.query<ProjectRow>(
@@ -75,14 +66,14 @@ describe("projects constraints", () => {
     ],
   ])("rejects %s", async (_case, project, sqlstate) => {
     await withRollback(async (sql) => {
-      await seedUser(sql);
+      await seedUsers(sql, [USER_ID]);
       await expect(insertProject(sql, project)).rejects.toMatchObject({ code: sqlstate });
     });
   });
 
   it("accepts a full repo pair, and a second project tracking the same repo", async () => {
     await withRollback(async (sql) => {
-      await seedUser(sql);
+      await seedUsers(sql, [USER_ID]);
       await insertProject(sql, { ...REPO_PAIR, name: "Both halves" });
       const second = await insertProject(sql, { ...REPO_PAIR, name: "Same repo again" });
       expect(second.rowCount).toBe(1);
@@ -93,7 +84,7 @@ describe("projects constraints", () => {
 describe("projects defaults", () => {
   it("starts each project unlinked, unarchived, with its own 64 hex character secret", async () => {
     await withRollback(async (sql) => {
-      await seedUser(sql);
+      await seedUsers(sql, [USER_ID]);
       const first = (await insertProject(sql, { name: "Projects test" })).rows[0];
       const second = (await insertProject(sql, { name: "Projects test two" })).rows[0];
 
