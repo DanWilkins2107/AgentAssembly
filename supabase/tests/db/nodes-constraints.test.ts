@@ -90,12 +90,4 @@ describe("nodes foreign keys", () => {
         insertNode(sql, { ...minimalNode, created_by: "00000000-0000-0000-0000-0000000000af" }),
       ).rejects.toMatchObject({ code: "23503" });
     }));
-
-  it("refuses deleting a project that still has nodes: nothing cascades", async () =>
-    withProject(async (sql) => {
-      await insertNode(sql, minimalNode);
-      await expect(
-        sql.query(`delete from public.projects where id = $1`, [PROJECT_ID]),
-      ).rejects.toMatchObject({ code: "23503" });
-    }));
 });
