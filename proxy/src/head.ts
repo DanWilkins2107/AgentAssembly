@@ -14,6 +14,7 @@ const HOST =
   /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
 const MAX_HOST_LENGTH = 253;
 const FIELD_NAME = /^[!#$%&'*+\-.^_`|~0-9a-z]+$/;
+const PROXY_AUTH = "proxy-authorization";
 
 const DEL = 0x7f;
 const FIRST_PRINTABLE = 0x20;
@@ -53,15 +54,19 @@ export type ParseResult =
   | { ok: true; method: string; head: Head }
   | { ok: false; method: string; status: 400 | 405 };
 
+type Split = { left: string; right: string };
+
+// The one colon split in the parser: the left side is lowercased, and the two
+// halves only come back together if the caller's rule accepts both.
 function splitAtColon(
   text: string,
   colon: number,
-): { left: string; right: string } | null {
+  valid: (left: string, right: string) => boolean,
+): Split | null {
   if (colon === -1) return null;
-  return {
-    left: text.slice(0, colon).toLowerCase(),
-    right: text.slice(colon + 1),
-  };
+  const left = text.slice(0, colon).toLowerCase();
+  const right = text.slice(colon + 1);
+  return valid(left, right) ? { left, right } : null;
 }
 
 function validHost(host: string): boolean {
@@ -73,36 +78,37 @@ function validPort(port: string): boolean {
 }
 
 function target(text: string): { host: string; port: number } | null {
-  const split = splitAtColon(text, text.lastIndexOf(":"));
-  if (split === null) return null;
-  const { left: host, right: port } = split;
-  if (!validHost(host) || !validPort(port)) return null;
-  return { host, port: Number(port) };
+  const split = splitAtColon(
+    text,
+    text.lastIndexOf(":"),
+    (host, port) => validHost(host) && validPort(port),
+  );
+  return split === null
+    ? null
+    : { host: split.left, port: Number(split.right) };
 }
 
-type Field = { name: string; value: string };
-
-function fields(lines: string[]): Field[] | null {
-  const parsed: Field[] = [];
+// Every header line must be well formed, but only Proxy-Authorization is kept;
+// nothing else in the headers is ever read.
+function credentials(lines: string[]): string[] | null {
+  const values: string[] = [];
   for (const line of lines) {
-    const split = splitAtColon(line, line.indexOf(":"));
-    // Also rejects obs-fold continuations, whose name would start with a space.
-    if (split === null || !FIELD_NAME.test(split.left)) return null;
-    parsed.push({ name: split.left, value: split.right.trim() });
+    // The name rule also rejects obs-fold continuations, whose name would
+    // start with a space.
+    const split = splitAtColon(line, line.indexOf(":"), (name) =>
+      FIELD_NAME.test(name),
+    );
+    if (split === null) return null;
+    if (split.left === PROXY_AUTH) values.push(split.right.trim());
   }
-  return parsed;
+  return values;
 }
 
-// Only Proxy-Authorization is kept; nothing else in the headers is ever read. A
-// repeat of it is refused rather than resolved, so the policy hook can never be
+// A repeat is refused rather than resolved, so the policy hook can never be
 // shown a different credential from the one a reader of the request would see.
 function proxyAuthorization(lines: string[]): string | null | undefined {
-  const parsed = fields(lines);
-  if (parsed === null) return null;
-  const values = parsed
-    .filter((field) => field.name === "proxy-authorization")
-    .map((field) => field.value);
-  if (values.length > 1) return null;
+  const values = credentials(lines);
+  if (values === null || values.length > 1) return null;
   const [value] = values;
   if (value === undefined) return undefined;
   return hasControl(value) ? null : value;

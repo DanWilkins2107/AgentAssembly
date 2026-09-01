@@ -109,6 +109,9 @@ describe("parseHead", () => {
       "example.com:65536",
       "example.com:443443",
       "example.com:44a",
+      // Trailing whitespace that `Number` would quietly swallow back to 443.
+      "example.com:443\t",
+      "example.com:443\n",
       "example.com:443:443",
       "[::1]:443",
       "user@example.com:443",

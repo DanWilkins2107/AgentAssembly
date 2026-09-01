@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { logLine, type Entry } from "./log.js";
 
-// The shape terraform/modules/vm/tests/squid-access-log.sh greps for.
 const SIX_FIELDS = /^[0-9]+\.[0-9]{3} \S+ \S+ [A-Z_]+\/[0-9]{3} [0-9]+ \S+\n$/;
 
 const entry = (over: Partial<Entry> = {}): Entry => ({
@@ -11,14 +10,13 @@ const entry = (over: Partial<Entry> = {}): Entry => ({
   status: 200,
   bytes: 4096,
   host: "example.com",
-  port: 443,
   ...over,
 });
 
 describe("logLine", () => {
-  it("writes the six audit fields in squid's order", () => {
+  it("writes the six audit fields in order", () => {
     expect(logLine(entry())).toBe(
-      "1764000123.045 sess-1 CONNECT TCP_TUNNEL/200 4096 example.com:443\n",
+      "1764000123.045 sess-1 CONNECT TCP_TUNNEL/200 4096 example.com\n",
     );
   });
 
@@ -40,16 +38,12 @@ describe("logLine", () => {
     }
   });
 
-  it("writes `-` where the session or the destination is unknown", () => {
-    const line = logLine(
-      entry({ session: undefined, host: undefined, port: undefined }),
+  it("writes `-` where the session or the host is unknown", () => {
+    expect(logLine(entry({ session: undefined, host: undefined }))).toBe(
+      "1764000123.045 - CONNECT TCP_TUNNEL/200 4096 -\n",
     );
-
-    expect(line).toBe("1764000123.045 - CONNECT TCP_TUNNEL/200 4096 -\n");
-    expect(logLine(entry({ host: "example.com", port: undefined }))).toContain(
-      " -\n",
-    );
-    expect(logLine(entry({ host: undefined, port: 443 }))).toContain(" -\n");
+    expect(logLine(entry({ host: undefined }))).toContain(" 4096 -\n");
+    expect(logLine(entry({ session: undefined }))).toContain(" - CONNECT ");
   });
 
   it("drops a session id that could split the line", () => {
@@ -64,7 +58,7 @@ describe("logLine", () => {
   it("drops a method that is not a known token", () => {
     const line = logLine(
       entry({
-        method: "GET TCP_TUNNEL/200 0 evil.example:443\n1764000000.000",
+        method: "GET TCP_TUNNEL/200 0 evil.example\n1764000000.000",
       }),
     );
 

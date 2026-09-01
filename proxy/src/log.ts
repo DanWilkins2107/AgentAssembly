@@ -1,17 +1,13 @@
-// The six-field access line, unchanged from the squid `audit` logformat it
-// replaces: unix ts, session, method, result/status, bytes to client, host:port.
-// terraform/modules/vm/tests/squid-access-log.sh greps this exact shape.
-//
-// Nothing a client sends is interpolated. The method is a fixed token or `-`,
-// the destination is rebuilt from an already-validated host and a number, and
-// the session is dropped unless it matches the id charset. A request byte
-// cannot field-split a line or add one.
+// Nothing a client sends is interpolated: the method is a fixed token or `-`,
+// the host is rebuilt from an already-validated parse, and a session id outside
+// the id charset is dropped. A request byte cannot split a field or add a line.
 
 import { logMethod } from "./head.js";
 
 const SESSION = /^[A-Za-z0-9_-]+$/;
 const MILLIS = 1000;
-const UNKNOWN = "-";
+
+export const UNKNOWN = "-";
 
 function result(status: number): string {
   if (status === 200) return "TCP_TUNNEL";
@@ -26,7 +22,6 @@ export type Entry = {
   status: number;
   bytes: number;
   host: string | undefined;
-  port: number | undefined;
 };
 
 export function logLine(entry: Entry): string {
@@ -36,18 +31,13 @@ export function logLine(entry: Entry): string {
     entry.session !== undefined && SESSION.test(entry.session)
       ? entry.session
       : UNKNOWN;
-  const dest =
-    entry.host !== undefined && entry.port !== undefined
-      ? `${entry.host}:${entry.port}`
-      : UNKNOWN;
-  const status = String(entry.status).padStart(3, "0");
   const fields = [
     `${seconds}.${millis}`,
     session,
     logMethod(entry.method),
-    `${result(entry.status)}/${status}`,
+    `${result(entry.status)}/${String(entry.status).padStart(3, "0")}`,
     entry.bytes,
-    dest,
+    entry.host ?? UNKNOWN,
   ];
   return `${fields.join(" ")}\n`;
 }

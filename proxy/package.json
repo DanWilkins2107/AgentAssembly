@@ -10,6 +10,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --coverage",
+    "mutation": "stryker run",
     "lint": "eslint .",
     "format:check": "prettier --check ."
   }

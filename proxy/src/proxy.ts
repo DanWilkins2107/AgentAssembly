@@ -5,7 +5,7 @@
 
 import { connect, createServer, type Server, type Socket } from "node:net";
 import { MAX_HEAD_BYTES, parseHead } from "./head.js";
-import { logLine } from "./log.js";
+import { logLine, UNKNOWN } from "./log.js";
 import type { Policy } from "./policy.js";
 
 const HEAD_TIMEOUT_MS = 10_000;
@@ -14,7 +14,6 @@ const ALLOWED_PORT = 443;
 
 const TERMINATOR = "\r\n\r\n";
 const ESTABLISHED = "HTTP/1.1 200 Connection Established\r\n\r\n";
-const UNKNOWN_METHOD = "-";
 
 const STATUS_TEXT: Record<number, string> = {
   400: "Bad Request",
@@ -34,7 +33,6 @@ type Refusal = {
   status: number;
   method: string;
   host?: string | undefined;
-  port?: number | undefined;
   session?: string | undefined;
 };
 
@@ -53,7 +51,6 @@ function handle(client: Socket, options: ProxyOptions): void {
         status: entry.status,
         bytes: entry.bytes,
         host: entry.host,
-        port: entry.port,
       }),
     );
   };
@@ -63,8 +60,11 @@ function handle(client: Socket, options: ProxyOptions): void {
     const response = `HTTP/1.1 ${refusal.status} ${text}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n`;
     // Stop reading first. A refusal on the read timeout would otherwise be
     // followed by the head finally arriving and opening a tunnel that the
-    // already-spent log line could never record.
-    client.removeAllListeners("data");
+    // already-spent log line could never record. `end` below destroys the
+    // socket anyway once the response flushes, which is why no test can tell
+    // this line from its absence - it closes the window before that flush.
+    // Stryker disable next-line StringLiteral: guards an unobservable race; see above
+    client.off("data", onData);
     record({ ...refusal, bytes: Buffer.byteLength(response) });
     client.end(response);
   };
@@ -92,13 +92,12 @@ function handle(client: Socket, options: ProxyOptions): void {
     const shut = () => {
       client.destroy();
       upstream.destroy();
-      if (established)
-        record({ status: 200, method, bytes, host, port, session });
+      if (established) record({ status: 200, method, bytes, host, session });
     };
 
     upstream.on("error", () => {
       if (established) return shut();
-      refuse({ status: 502, method, host, port, session });
+      refuse({ status: 502, method, host, session });
     });
     // An upstream close ends the client through the pipe, so the client's own
     // close is the one place the tunnel is logged and both ends are torn down.
@@ -112,7 +111,7 @@ function handle(client: Socket, options: ProxyOptions): void {
     }
     const { host, port, proxyAuthorization } = parsed.head;
     if (port !== ALLOWED_PORT) {
-      return refuse({ status: 403, method: parsed.method, host, port });
+      return refuse({ status: 403, method: parsed.method, host });
     }
     // Deny by default: no outbound socket exists before this answers.
     const decision = options.policy(host, port, proxyAuthorization);
@@ -121,7 +120,6 @@ function handle(client: Socket, options: ProxyOptions): void {
         status: decision.status,
         method: parsed.method,
         host,
-        port,
         session: decision.session,
       });
     }
@@ -133,14 +131,14 @@ function handle(client: Socket, options: ProxyOptions): void {
     const end = buffer.indexOf(TERMINATOR);
     if (end < 0) {
       if (buffer.length <= MAX_HEAD_BYTES) return;
-      return refuse({ status: 400, method: UNKNOWN_METHOD });
+      return refuse({ status: 400, method: UNKNOWN });
     }
     client.off("data", onData);
     // The head is in, so the read timeout is spent. Leaving it armed would let
     // it fire while upstream is still connecting and refuse a live tunnel.
     client.setTimeout(0);
     if (end > MAX_HEAD_BYTES) {
-      return refuse({ status: 400, method: UNKNOWN_METHOD });
+      return refuse({ status: 400, method: UNKNOWN });
     }
     // Anything past the head is the client's first tunnel bytes, held until
     // upstream is up. It is forwarded verbatim and never parsed.
@@ -153,9 +151,11 @@ function handle(client: Socket, options: ProxyOptions): void {
 
   client.setTimeout(options.headTimeoutMs ?? HEAD_TIMEOUT_MS);
   client.on("timeout", () => {
-    refuse({ status: 400, method: UNKNOWN_METHOD });
+    refuse({ status: 400, method: UNKNOWN });
   });
-  client.on("error", () => client.destroy());
+  // A client reset is routine; node destroys the socket itself, so this only
+  // has to stop an unhandled `error` from taking the whole proxy down.
+  client.on("error", () => {});
   client.on("data", onData);
 }
 

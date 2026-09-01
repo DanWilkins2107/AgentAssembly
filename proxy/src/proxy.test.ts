@@ -20,6 +20,7 @@ const ESTABLISHED = "HTTP/1.1 200 Connection Established\r\n\r\n";
 // staying empty is the "no socket was opened" assertion.
 const outbound: Array<{ host: string; port: number }> = [];
 let originPort = 0;
+let stall = false;
 
 vi.mock("node:net", async (importOriginal) => {
   const net = await importOriginal<typeof import("node:net")>();
@@ -30,6 +31,9 @@ vi.mock("node:net", async (importOriginal) => {
       onConnect: () => void,
     ) => {
       outbound.push({ host: options.host, port: options.port });
+      // A socket that never finishes connecting, to hold a request open in the
+      // window between the dial and the 200.
+      if (stall) return new net.Socket();
       const target =
         options.port === ALLOWED_PORT
           ? { host: "127.0.0.1", port: originPort }
@@ -62,8 +66,8 @@ const shutdown = (server: Server) =>
     server.close(() => resolve());
   });
 
-const open = (port: number) => {
-  const socket = createConnection({ host: "127.0.0.1", port });
+const open = (port: number, allowHalfOpen = false) => {
+  const socket = createConnection({ host: "127.0.0.1", port, allowHalfOpen });
   const state = { received: "", closed: false };
   socket.on("data", (data: Buffer) => {
     state.received += data.toString("latin1");
@@ -159,7 +163,10 @@ beforeEach(() => {
   lines = [];
   policyCalls = [];
   originHits = 0;
+  stall = false;
 });
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
 
 afterEach(async () => {
   await shutdown(proxy);
@@ -213,8 +220,9 @@ describe("the port rule", () => {
       expect(policyCalls).toEqual([]);
       expect(outbound).toEqual([]);
       expect(originHits).toBe(0);
-      expect(await logged()).toContain(`CONNECT TCP_DENIED/403 `);
-      expect(await logged()).toContain(target);
+      expect(await logged()).toMatch(
+        /^\d+\.\d{3} - CONNECT TCP_DENIED\/403 \d+ example\.com\n$/,
+      );
       await shutdown(proxy);
       await shutdown(origin);
     }
@@ -237,7 +245,7 @@ describe("deny by default", () => {
     expect(outbound).toEqual([]);
     expect(originHits).toBe(0);
     expect(await logged()).toMatch(
-      /^\d+\.\d{3} - CONNECT TCP_DENIED\/403 \d+ github\.com:443\n$/,
+      /^\d+\.\d{3} - CONNECT TCP_DENIED\/403 \d+ github\.com\n$/,
     );
   });
 
@@ -413,6 +421,23 @@ describe("malformed requests", () => {
     expect(await logged()).toContain("- - TCP_DENIED/400");
   });
 
+  it("will not tunnel on a head that lands after the timeout refused it", async () => {
+    const port = await start(exactly("example.com"), { headTimeoutMs: 50 });
+
+    const { socket, state } = open(port, true);
+    socket.write("CONNECT example.com:443 HTTP/1.1\r\n");
+    await vi.waitFor(() => {
+      expect(state.received).toContain("400 Bad Request");
+    });
+    socket.write("\r\n");
+    await settle();
+
+    expect(outbound).toEqual([]);
+    expect(policyCalls).toEqual([]);
+    expect(lines).toHaveLength(1);
+    socket.destroy();
+  });
+
   it("survives a client that resets mid-head", async () => {
     const port = await start(exactly("example.com"));
 
@@ -450,7 +475,7 @@ describe("the tunnel", () => {
     // The byte count is the 200 line plus the four echoed back, and nothing else.
     expect(await logged()).toMatch(
       new RegExp(
-        `^\\d+\\.\\d{3} sess-1 CONNECT TCP_TUNNEL/200 ${ESTABLISHED.length + 4} example\\.com:443\\n$`,
+        `^\\d+\\.\\d{3} sess-1 CONNECT TCP_TUNNEL/200 ${ESTABLISHED.length + 4} example\\.com\\n$`,
       ),
     );
   });
@@ -479,8 +504,42 @@ describe("the tunnel", () => {
 
     expect(response).toContain("502 Bad Gateway");
     expect(await logged()).toMatch(
-      /^\d+\.\d{3} sess-1 CONNECT TCP_MISS\/502 \d+ example\.com:443\n$/,
+      /^\d+\.\d{3} sess-1 CONNECT TCP_MISS\/502 \d+ example\.com\n$/,
     );
+  });
+
+  it("logs nothing when the client leaves before the 200", async () => {
+    stall = true;
+    const port = await start(exactly("example.com"));
+
+    const { socket } = open(port);
+    socket.write("CONNECT example.com:443 HTTP/1.1\r\n\r\n");
+    await vi.waitFor(() => {
+      expect(outbound).toHaveLength(1);
+    });
+    socket.destroy();
+    await settle();
+
+    expect(lines).toEqual([]);
+  });
+
+  it("survives a client that resets an established tunnel", async () => {
+    const port = await start(exactly("example.com"));
+
+    const { socket, state } = open(port);
+    socket.write("CONNECT example.com:443 HTTP/1.1\r\n\r\n");
+    await vi.waitFor(() => {
+      expect(state.received).toContain("200 Connection Established");
+    });
+    socket.write("ping");
+    await vi.waitFor(() => {
+      expect(state.received).toContain("ping");
+    });
+    socket.resetAndDestroy();
+    await settle();
+
+    expect(proxy.listening).toBe(true);
+    expect(await logged()).toContain("CONNECT TCP_TUNNEL/200");
   });
 
   it("logs once when the upstream drops an established tunnel", async () => {
