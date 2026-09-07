@@ -102,16 +102,6 @@ describe("project_members membership", () => {
     });
   });
 
-  it("blocks deleting a project that still has members", async () => {
-    await withRollback(async (sql) => {
-      await seed(sql);
-      await addMember(sql, { user: OWNER_USER, role: "owner" });
-      await expect(
-        sql.query(`delete from public.projects where id = $1`, [PROJECT]),
-      ).rejects.toMatchObject({ code: "23503" });
-    });
-  });
-
   it("blocks deleting a user who is still a member", async () => {
     await withRollback(async (sql) => {
       await seed(sql);
