@@ -11,18 +11,21 @@ const PROXY_DETAIL =
 const RO_PATHS = [
   "/usr",
   "/bin",
-  "/sbin",
   "/lib",
-  "/lib32",
   "/lib64",
   "/opt",
   "/etc/ssl/certs",
-  "/etc/resolv.conf",
   "/etc/hosts",
   "/etc/nsswitch.conf",
   "/etc/passwd",
   "/etc/group",
 ];
+
+// The three the review took out. /sbin and /lib32 hold nothing the session runs
+// on a noble amd64 image; /etc/resolv.conf is the one that matters, because the
+// nftables output chain accepts port 53 from any uid, so an unresolvable
+// sandbox is what closes DNS as an egress path.
+const DROPPED_RO_PATHS = ["/sbin", "/lib32", "/etc/resolv.conf"];
 
 const env = (over: Partial<SandboxEnv> = {}): SandboxEnv => ({
   LOOP_SESSION_PROXY: PROXY,
@@ -117,6 +120,10 @@ describe("buildBwrapArgs", () => {
     const args = build();
     expect(args).not.toContain("/etc");
     expect(targetsOf(args, "--ro-bind")).toEqual(RO_PATHS);
+  });
+
+  it.each(DROPPED_RO_PATHS)("never binds %s, even when it exists", (path) => {
+    expect(build({ exists: () => true })).not.toContain(path);
   });
 
   it("sets every proxy env var, including the git http.proxy trio", () => {

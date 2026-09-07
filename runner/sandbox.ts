@@ -1,5 +1,11 @@
-import { existsSync } from "node:fs";
 import { z } from "zod";
+import {
+  roBindArgs,
+  SANDBOX_GID,
+  SANDBOX_HOME,
+  SANDBOX_UID,
+} from "./sandbox-mounts";
+import { proxyArgs } from "./sandbox-proxy";
 
 // These names are written by terraform/modules/vm/user-data/loop-env.sh —
 // rename in both places or the session boots with no proxy.
@@ -26,70 +32,11 @@ export function parseSandboxEnv(env: NodeJS.ProcessEnv): EnvResult {
   return { ok: false, detail };
 }
 
-// Named binds, never a blanket /etc: the whole directory would hand the session
-// /etc/agentassembly/loop.env (root:loop 0640) — its own proxy password.
-const RO_PATHS = [
-  "/usr",
-  "/bin",
-  "/sbin",
-  "/lib",
-  "/lib32",
-  "/lib64",
-  "/opt",
-  "/etc/ssl/certs",
-  "/etc/resolv.conf",
-  "/etc/hosts",
-  "/etc/nsswitch.conf",
-  "/etc/passwd",
-  "/etc/group",
-];
-
-const SANDBOX_HOME = "/home/agent";
-const SANDBOX_UID = "1000";
-const SANDBOX_GID = "1000";
-
 export interface BwrapOptions {
   env: SandboxEnv;
   callerUid: number;
+  /** See roBindArgs in ./sandbox-mounts — bwrap dies on a missing bind source. */
   exists?: (p: string) => boolean;
-}
-
-function roBindArgs(exists: (p: string) => boolean): string[] {
-  const args: string[] = [];
-  for (const p of RO_PATHS) {
-    if (exists(p)) args.push("--ro-bind", p, p);
-  }
-  return args;
-}
-
-// Both casings plus GIT_CONFIG_* so git cannot bypass the proxy.
-function proxyArgs(proxy: string, noProxy: string | undefined): string[] {
-  const args = [
-    "--setenv",
-    "HTTPS_PROXY",
-    proxy,
-    "--setenv",
-    "https_proxy",
-    proxy,
-    "--setenv",
-    "HTTP_PROXY",
-    proxy,
-    "--setenv",
-    "http_proxy",
-    proxy,
-    "--setenv",
-    "GIT_CONFIG_COUNT",
-    "1",
-    "--setenv",
-    "GIT_CONFIG_KEY_0",
-    "http.proxy",
-    "--setenv",
-    "GIT_CONFIG_VALUE_0",
-    proxy,
-  ];
-  if (noProxy)
-    args.push("--setenv", "NO_PROXY", noProxy, "--setenv", "no_proxy", noProxy);
-  return args;
 }
 
 export function buildBwrapArgs(
@@ -106,8 +53,21 @@ export function buildBwrapArgs(
     NO_PROXY: noProxy,
   } = opts.env;
 
-  // The network namespace is deliberately NOT unshared: the session must reach
-  // the host-local proxy. Network confinement is the host firewall's job.
+  // The network namespace is deliberately NOT unshared, and it cannot be:
+  // --unshare-net gives the sandbox a private loopback, while the session's only
+  // route out is the squid listening on the *host's* 127.0.0.1:3128. Unsharing
+  // would leave it with no network rather than a confined one.
+  //
+  // That does not collapse sessions into each other. Per-session confinement is
+  // done at the proxy rather than the netns: session-proxy-identity (see
+  // terraform/modules/vm/user-data/squid.sh) mints a fresh squid username and
+  // password per session, squid denies anything unauthenticated
+  // (http_access deny !session), and every line of the audit log is stamped with
+  // the session name — so concurrent sandboxes stay separately authorised,
+  // separately rate-limited and separately attributable. What they genuinely
+  // share is the reachable network surface, and closing that is the host
+  // firewall's job: the nftables output chain drops all egress that is not from
+  // uid 0 or the proxy user.
   return [
     "--unshare-user",
     "--unshare-pid",
@@ -126,7 +86,7 @@ export function buildBwrapArgs(
     "/dev",
     "--tmpfs",
     "/tmp",
-    ...roBindArgs(opts.exists ?? existsSync),
+    ...roBindArgs(opts.exists),
     "--tmpfs",
     SANDBOX_HOME,
     "--setenv",
