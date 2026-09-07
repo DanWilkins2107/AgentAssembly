@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { buildBwrapArgs, parseSandboxEnv, type SandboxEnv } from "./sandbox";
+import { roBindArgs } from "./sandbox-mounts";
 
 const PROXY = "http://127.0.0.1:3128";
 const WORKDIR = "/srv/session-work";
@@ -199,6 +200,21 @@ describe("buildBwrapArgs", () => {
       "--print",
       "hello",
     ]);
+  });
+});
+
+describe("roBindArgs", () => {
+  // Asserted on the helper directly, not through buildBwrapArgs: the bind
+  // section has to be exactly triples and nothing else, and a stray element in
+  // the middle of the arg vector is something bwrap would read as a path.
+  it("emits nothing but --ro-bind triples", () => {
+    expect(roBindArgs(() => true)).toEqual(
+      RO_PATHS.flatMap((p) => ["--ro-bind", p, p]),
+    );
+  });
+
+  it("emits nothing at all when no path exists", () => {
+    expect(roBindArgs(() => false)).toEqual([]);
   });
 });
 
