@@ -36,37 +36,59 @@ export function emitResult(
   process.exit(exitCode);
 }
 
-export function preflight(): Promise<
-  { ok: true } | { ok: false; detail: string }
-> {
+type WhoamiRun =
+  | { spawned: false; error: string }
+  | { spawned: true; code: number | null; stdout: string; stderr: string };
+
+// Run `aj whoami --json` to completion, capturing both streams. A child that
+// never starts resolves as `spawned: false` rather than throwing, so the caller
+// stays a flat sequence of checks.
+function runWhoami(): Promise<WhoamiRun> {
   return new Promise((resolve) => {
     const child = spawn("aj", ["whoami", "--json"], {
       stdio: ["ignore", "pipe", "pipe"],
     });
-    let out = "";
-    let err = "";
-    child.stdout.on("data", (d) => (out += d));
-    child.stderr.on("data", (d) => (err += d));
-    child.on("error", (e) =>
-      resolve({ ok: false, detail: `\`aj\` not runnable: ${e.message}` }),
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => (stdout += d));
+    child.stderr.on("data", (d) => (stderr += d));
+    child.on("error", (e) => resolve({ spawned: false, error: e.message }));
+    child.on("close", (code) =>
+      resolve({ spawned: true, code, stdout, stderr }),
     );
-    child.on("close", (code) => {
-      if (code !== 0) {
-        resolve({
-          ok: false,
-          detail: `\`aj\` not authenticated (whoami exit=${code}): ${err.trim() || "no auth resolved from env vars or ~/.agentjira/config.json"}`,
-        });
-        return;
-      }
-      try {
-        JSON.parse(out);
-        resolve({ ok: true });
-      } catch {
-        resolve({
-          ok: false,
-          detail: "`aj whoami` returned unparseable output",
-        });
-      }
-    });
   });
+}
+
+// A clean exit still has to carry JSON: garbled output means the auth check
+// never really answered.
+function whoamiParsed(
+  stdout: string,
+): { ok: true } | { ok: false; detail: string } {
+  try {
+    JSON.parse(stdout);
+    return { ok: true };
+  } catch {
+    return { ok: false, detail: "`aj whoami` returned unparseable output" };
+  }
+}
+
+function notAuthenticated(code: number | null, stderr: string): string {
+  const reason =
+    stderr.trim() ||
+    "no auth resolved from env vars or ~/.agentjira/config.json";
+  return `\`aj\` not authenticated (whoami exit=${code}): ${reason}`;
+}
+
+// `aj` has to be on PATH and authenticated before a session is worth starting.
+export async function preflight(): Promise<
+  { ok: true } | { ok: false; detail: string }
+> {
+  const run = await runWhoami();
+  if (!run.spawned) {
+    return { ok: false, detail: `\`aj\` not runnable: ${run.error}` };
+  }
+  if (run.code !== 0) {
+    return { ok: false, detail: notAuthenticated(run.code, run.stderr) };
+  }
+  return whoamiParsed(run.stdout);
 }
