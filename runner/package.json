@@ -12,5 +12,8 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "mutation": "stryker run"
+  },
+  "dependencies": {
+    "zod": "^4.1.12"
   }
 }

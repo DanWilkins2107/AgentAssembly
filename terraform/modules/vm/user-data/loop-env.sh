@@ -11,6 +11,8 @@ no_proxy=$(printf '%s\n' "$boot_identity" | sed -n 's/^no_proxy=//p')
 env_tmp=$(mktemp /etc/agentassembly/loop.env.XXXXXX)
 chown root:loop "$env_tmp"
 chmod 0640 "$env_tmp"
+# runner/sandbox.ts parses these names — rename in both places or the session
+# boots with no proxy.
 {
   printf 'LOOP_SESSION_PROXY=%s\n' "$proxy_url"
   printf 'LOOP_SESSION_WORKDIR=%s\n' /var/lib/agentassembly
