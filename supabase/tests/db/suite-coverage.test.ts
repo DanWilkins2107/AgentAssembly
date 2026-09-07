@@ -1,5 +1,6 @@
 import { readdirSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
+import { accessFileFor } from "./access.ts";
 import { withRollback } from "./harness.ts";
 
 type SuiteException = {
@@ -19,6 +20,13 @@ function tablesWithoutSuite(tables: string[], files: string[]): string[] {
     (table) =>
       !hasSuite(table, files) && !suiteExceptions.some((exception) => exception.table === table),
   );
+}
+
+// Grants and policies are declared one file per table rather than in a single
+// inventory, so the exact filename is what makes a missing declaration loud: a
+// table with no access file has said nothing about what it opens.
+function tablesWithoutAccessSuite(tables: string[], files: string[]): string[] {
+  return tables.filter((table) => !files.includes(accessFileFor(table)));
 }
 
 const suiteFiles = readdirSync(import.meta.dirname).filter((file) => file.endsWith(".test.ts"));
@@ -63,5 +71,18 @@ describe("per-table suite coverage", () => {
 
   it("does not let events.test.ts stand in for an event table", () => {
     expect(tablesWithoutSuite(["event"], suiteFiles)).toEqual(["event"]);
+  });
+
+  it("has an access declaration for every public table", () => {
+    expect(tablesWithoutAccessSuite(tables, suiteFiles)).toEqual([]);
+  });
+
+  it("catches a new table nobody declared access for", () => {
+    expect(tablesWithoutAccessSuite([...tables, "widgets"], suiteFiles)).toEqual(["widgets"]);
+  });
+
+  it("does not let a table's other suites stand in for its access declaration", () => {
+    const withoutAccess = suiteFiles.filter((file) => file !== accessFileFor("nodes"));
+    expect(tablesWithoutAccessSuite(["nodes"], withoutAccess)).toEqual(["nodes"]);
   });
 });

@@ -22,5 +22,4 @@ create table public.project_members (
 -- (membership and settings), so a compromised agent cannot widen its own reach.
 -- auth.uid() is null for the service role, seeds and migrations: the system
 -- actor, which bypasses RLS by construction and is server-side only.
--- TODO 8c320d4b 2026-09-25: grants and RLS policies for project_members.
 alter table public.project_members enable row level security;
