@@ -48,5 +48,4 @@ create trigger nodes_set_updated_at
   before update on public.nodes
   for each row execute function public.set_updated_at();
 
--- TODO 8c320d4b 2026-09-25: grants and RLS policies for nodes.
 alter table public.nodes enable row level security;

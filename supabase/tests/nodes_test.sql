@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap;
-select plan(13);
+select plan(12);
 
 -- updated_at trigger
 
@@ -40,12 +40,6 @@ select is(
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.nodes'::regclass),
   'row level security is enabled on nodes'
-);
-
-select is_empty(
-  $$ select policyname::text from pg_policies
-      where schemaname = 'public' and tablename = 'nodes' $$,
-  'nodes has no RLS policies yet: grants and policies land in slice 8c320d4b'
 );
 
 -- Behaviour
