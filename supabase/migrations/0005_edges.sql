@@ -18,5 +18,4 @@ create index edges_project_id_idx on public.edges (project_id);
 create index edges_source_id_idx on public.edges (source_id);
 create index edges_target_id_idx on public.edges (target_id);
 
--- TODO 8c320d4b 2026-09-25: grants and RLS policies for edges.
 alter table public.edges enable row level security;
