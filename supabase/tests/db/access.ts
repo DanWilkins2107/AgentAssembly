@@ -11,9 +11,16 @@ export type PolicyShape = {
   withCheck: string | null;
 };
 
+// privilege -> the columns it is held on, for one grantee.
+export type ColumnGrants = Record<string, string[]>;
+
 export type TableAccess = {
   anon: string[];
   authenticated: string[];
+  // Column-level grants live in pg_attribute.attacl, not in the table ACL, so a
+  // table that withholds a single column reads as granting nothing at all above.
+  // Grantees with no column grants are left out.
+  columns?: Record<string, ColumnGrants>;
   policies: PolicyShape[];
 };
 
@@ -34,6 +41,7 @@ export const accessFileFor = (table: string) => `${table.replaceAll("_", "-")}-a
 const NON_MEMBER = "00000000-0000-0000-0000-0000000000ac";
 
 type AclEntry = { grantee: string; privilege: string };
+type ColumnAclEntry = AclEntry & { column: string };
 type PgError = { code?: string; message?: string };
 
 const FROM_RELATION = `from pg_class class
@@ -52,6 +60,18 @@ const GRANTS = `select coalesce(grantee.rolname::text, 'public') as grantee,
                   left join pg_roles grantee on grantee.oid = acl.grantee
                  where ${IS_THE_TABLE}
                  order by 1, 2`;
+
+const COLUMN_GRANTS = `select coalesce(grantee.rolname::text, 'public') as grantee,
+                              acl.privilege_type::text as privilege,
+                              attribute.attname::text as column
+                         ${FROM_RELATION}
+                         join pg_attribute attribute on attribute.attrelid = class.oid
+                         cross join lateral aclexplode(attribute.attacl) acl
+                         left join pg_roles grantee on grantee.oid = acl.grantee
+                        where ${IS_THE_TABLE}
+                          and attribute.attnum > 0
+                          and not attribute.attisdropped
+                        order by 1, 2, 3`;
 
 const POLICIES = `select policyname::text as name,
                          cmd::text as command,
@@ -94,6 +114,44 @@ function heldBy(grants: AclEntry[]): Record<string, string[]> {
   );
 }
 
+function columnsHeldBy(grants: ColumnAclEntry[]): Record<string, ColumnGrants> {
+  const held: Record<string, ColumnGrants> = {};
+  for (const grant of grants) {
+    const byPrivilege = (held[grant.grantee] ??= {});
+    (byPrivilege[grant.privilege] ??= []).push(grant.column);
+  }
+  return held;
+}
+
+function sortColumns(declared: Record<string, ColumnGrants>): Record<string, ColumnGrants> {
+  return Object.fromEntries(
+    Object.entries(declared).map(([grantee, byPrivilege]) => [
+      grantee,
+      Object.fromEntries(
+        Object.entries(byPrivilege).map(([privilege, columns]) => [privilege, [...columns].sort()]),
+      ),
+    ]),
+  );
+}
+
+// Whichever column the UPDATE probe writes has to be one the caller may also
+// read, since `set c = c` reads c; a granted column is both.
+function updateProbeColumn(
+  relation: string,
+  openColumns: ColumnGrants,
+  writable: { column: string }[],
+): string {
+  const granted = openColumns.UPDATE?.[0];
+  if (granted !== undefined) return granted;
+  const fallback = writable[0];
+  if (fallback === undefined) throw new Error(`no writable column on ${relation}`);
+  return fallback.column;
+}
+
+function opens(expected: TableAccess, openColumns: ColumnGrants, operation: Operation): boolean {
+  return expected.authenticated.includes(operation) || (openColumns[operation]?.length ?? 0) > 0;
+}
+
 // `where false` and `default values` keep every probe from depending on the
 // data: Postgres checks the table ACL before it looks at rows or constraints,
 // so a refusal here is the grant talking.
@@ -132,24 +190,28 @@ async function probe(sql: Client, statement: string): Promise<string> {
 
 /**
  * Declares one table's whole access surface: the privileges anon, authenticated
- * and PUBLIC hold, the policies on the table, and -- run against the database as
- * a signed-in caller -- whether each of select/insert/update/delete is blocked
- * or open. Every public table owns one of these; suite-coverage.test.ts fails a
- * table that has none.
+ * and PUBLIC hold on the table and on individual columns, the policies on the
+ * table, and -- run against the database as a signed-in caller -- whether each
+ * of select/insert/update/delete is blocked or open. Every public table owns one
+ * of these; suite-coverage.test.ts fails a table that has none.
  */
 export function describeAccess(relation: string, expected: TableAccess): void {
+  const declaredColumns = expected.columns ?? {};
+  const openColumns = declaredColumns.authenticated ?? {};
+
   describe(`${relation} access`, () => {
     let grants: AclEntry[] = [];
+    let columnGrants: ColumnAclEntry[] = [];
     let policies: PolicyShape[] = [];
     let column = "";
 
     beforeAll(async () => {
       await withRollback(async (sql) => {
         grants = await read<AclEntry>(sql, GRANTS, relation);
+        columnGrants = await read<ColumnAclEntry>(sql, COLUMN_GRANTS, relation);
         policies = await read<PolicyShape>(sql, POLICIES, relation);
         const writable = await read<{ column: string }>(sql, WRITABLE_COLUMN, relation);
-        if (writable.length === 0) throw new Error(`no writable column on ${relation}`);
-        column = writable[0].column;
+        column = updateProbeColumn(relation, openColumns, writable);
       });
     });
 
@@ -161,12 +223,16 @@ export function describeAccess(relation: string, expected: TableAccess): void {
       });
     });
 
+    it("holds exactly the declared column privileges", () => {
+      expect(columnsHeldBy(columnGrants)).toEqual(sortColumns(declaredColumns));
+    });
+
     it("has exactly the declared policies", () => {
       expect(policies).toEqual(expected.policies);
     });
 
     for (const operation of OPERATIONS) {
-      const open = expected.authenticated.includes(operation);
+      const open = opens(expected, openColumns, operation);
       it(`${open ? "opens" : "blocks"} ${operation} for a signed-in caller`, async () => {
         await withRollback(async (sql) => {
           await asAuthenticated(sql, NON_MEMBER, async () => {
