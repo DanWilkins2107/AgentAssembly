@@ -162,17 +162,13 @@ describe("messages schema", () => {
     });
   });
 
-  it("enables row level security with no policies yet", async () => {
+  // What the policies themselves say is messages-access.test.ts' job.
+  it("enables row level security", async () => {
     await withRollback(async (sql) => {
-      const { rows: table } = await sql.query<{ relrowsecurity: boolean }>(
+      const { rows } = await sql.query<{ relrowsecurity: boolean }>(
         `select relrowsecurity from pg_class where oid = 'public.messages'::regclass`,
       );
-      expect(table[0]?.relrowsecurity).toBe(true);
-
-      const { rows: policies } = await sql.query(
-        `select policyname from pg_policies where schemaname = 'public' and tablename = 'messages'`,
-      );
-      expect(policies).toEqual([]);
+      expect(rows[0]?.relrowsecurity).toBe(true);
     });
   });
 });

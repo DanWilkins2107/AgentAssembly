@@ -17,5 +17,4 @@ create index messages_node_id_idx on public.messages (node_id);
 create index messages_project_id_idx on public.messages (project_id);
 create index messages_fts_idx on public.messages using gin (fts);
 
--- TODO 8c320d4b 2026-09-25: grants and RLS policies for messages.
 alter table public.messages enable row level security;
