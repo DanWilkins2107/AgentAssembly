@@ -15,7 +15,6 @@ create table public.projects (
   archived_at timestamptz
 );
 
--- webhook_secret is a bearer credential: slice 8c320d4b must withhold client
--- SELECT on that column specifically, not just on the table.
--- TODO 8c320d4b 2026-09-25: grants and RLS policies for projects.
+-- webhook_secret is a bearer credential: 0011 withholds client SELECT on that
+-- column specifically, not just on the table.
 alter table public.projects enable row level security;
