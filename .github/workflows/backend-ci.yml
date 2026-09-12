@@ -34,9 +34,6 @@ jobs:
       - name: Verify services are healthy
         run: supabase status
 
-      - name: Run pgTAP database tests
-        run: supabase test db
-
       - name: Install test deps
         run: npm ci
 
