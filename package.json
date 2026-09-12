@@ -2,7 +2,7 @@
   "name": "agentassembly",
   "version": "0.0.0",
   "private": true,
-  "workspaces": ["cli", "runner", "web", "supabase/tests/auth", "supabase/tests/db"],
+  "workspaces": ["cli", "proxy", "runner", "web", "supabase/tests/auth", "supabase/tests/db"],
   "scripts": {
     "fallow": "fallow"
   },
@@ -19,7 +19,7 @@
     "@types/node": "^22.15.0",
     "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.37.0",
-    "fallow": "3.9.1",
+    "fallow": "3.21.0",
     "prettier": "^3.6.2",
     "tsx": "^4.7.0",
     "typescript": "^5.9.3",
